@@ -18,7 +18,7 @@ model Company {
   state             String            @default("OK")
   zip               String?
   territory         Territory         @default(OTHER)
-  industry          String?
+  industryIds       String[]          @default([])
   segment           Segment           @default(BASE_HIT)
   tier              Tier              @default(UNSCORED)
   stage             Stage             @default(NEW)
@@ -60,7 +60,7 @@ model Contact {
   interactions  Interaction[]
   drafts        Draft[]
 
-  @@unique([companyId, email], where: { email: { not: null } })
+    @@unique([companyId, email])
 }
 
 model Interaction {
@@ -147,6 +147,12 @@ model WebhookEvent {
   payload      Json
   processed    Boolean  @default(false)
   createdAt    DateTime @default(now())
+}
+
+model Industry {
+  id    String  @id @default(cuid())
+  name  String  @unique
+  createdAt DateTime @default(now())
 }
 
 model Setting {

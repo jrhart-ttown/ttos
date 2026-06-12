@@ -2,12 +2,14 @@ import { prisma } from '@/lib/prisma'
 import Link from 'next/link'
 import PipelineTable from '@/components/PipelineTable'
 import PipelineFilters from '@/components/PipelineFilters'
+import CSVUpload from '@/components/CSVUpload'
 
 interface SearchParams {
   stage?: string
   tier?: string
   territory?: string
   segment?: string
+  industry?: string
 }
 
 export const metadata = {
@@ -25,6 +27,11 @@ export default async function PipelinePageAsync({
   if (searchParams.tier) where.tier = searchParams.tier
   if (searchParams.territory) where.territory = searchParams.territory
   if (searchParams.segment) where.segment = searchParams.segment
+  if (searchParams.industry) {
+    where.industryIds = {
+      has: searchParams.industry,
+    }
+  }
 
   const companies = await prisma.company.findMany({
     where,
@@ -51,7 +58,29 @@ export default async function PipelinePageAsync({
   return (
     <div className="container">
       <div className="mb-8">
-        <h1 className="text-3xl font-bold mb-4">Pipeline</h1>
+        <div className="flex justify-between items-center mb-4">
+          <h1 className="text-3xl font-bold">Pipeline</h1>
+          <div className="flex gap-4">
+            <a
+              href="/approval-queue"
+              className="px-4 py-2 bg-green-600 text-white rounded font-medium hover:bg-green-700"
+            >
+              Approval Queue
+            </a>
+            <a
+              href="/settings"
+              className="px-4 py-2 bg-gray-600 text-white rounded font-medium hover:bg-gray-700"
+            >
+              Settings
+            </a>
+            <a
+              href="/audit"
+              className="px-4 py-2 bg-blue-600 text-white rounded font-medium hover:bg-blue-700"
+            >
+              Audit Log
+            </a>
+          </div>
+        </div>
 
         <div className="mb-6 p-4 bg-gray-50 rounded-lg">
           <h2 className="text-sm font-semibold mb-3">Stage Summary</h2>
@@ -79,6 +108,8 @@ export default async function PipelinePageAsync({
         </div>
 
         <PipelineFilters />
+
+        <CSVUpload />
       </div>
 
       <div className="overflow-x-auto">

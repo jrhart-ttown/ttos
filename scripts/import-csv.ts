@@ -1,3 +1,6 @@
+import { config } from 'dotenv'
+config({ path: '.env.local' })
+
 import fs from 'fs'
 import path from 'path'
 import { createInterface } from 'readline'
@@ -20,11 +23,11 @@ const HEADER_ALIASES: Record<string, string[]> = {
   industry: ['industry', 'vertical'],
   segment: ['segment', 'type'],
   tier: ['tier', 'level'],
-  firstName: ['first name', 'firstname', 'first'],
+  firstName: ['first name', 'firstname', 'first', 'contact name'],
   lastName: ['last name', 'lastname', 'last'],
   title: ['title', 'position'],
-  email: ['email', 'contact email'],
-  phone: ['phone', 'contact phone'],
+  email: ['email', 'contact email', 'email address'],
+  phone: ['phone', 'contact phone', 'phone number'],
   contactType: ['contact type', 'role'],
   estMonthlyValue: ['monthly value', 'est monthly value'],
   sqftEstimate: ['sqft', 'square feet'],
@@ -34,9 +37,7 @@ const HEADER_ALIASES: Record<string, string[]> = {
 
 function fuzzyMatchHeader(header: string, aliases: string[]): boolean {
   const normalized = header.toLowerCase().trim()
-  return aliases.some(alias =>
-    normalized.includes(alias) || alias.includes(normalized)
-  )
+  return aliases.some(alias => normalized.includes(alias))
 }
 
 function mapHeaders(csvHeaders: string[]): Record<string, number | undefined> {

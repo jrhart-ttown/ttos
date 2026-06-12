@@ -59,68 +59,44 @@ export async function upsertProspect(data: UpsertProspectInput) {
   const nameNormalized = data.nameNormalized || normalizeCompanyName(data.name)
   const dedupKey = createDedupKey(data.name, data.domain, data.address)
 
-  // Check for exact dedup match
-  const exact = await prisma.company.findUnique({
-    where: { dedupKey },
-  })
+  try {
+    // Try to create — if dedupKey exists, this will fail with unique constraint
+    const company = await prisma.company.create({
+      data: {
+        name: data.name,
+        nameNormalized,
+        website: data.website,
+        domain: data.domain ? normalizeDomain(data.domain) : undefined,
+        address: data.address,
+        city: data.city,
+        state: data.state || 'OK',
+        zip: data.zip,
+        territory: (data.territory as any) || 'OTHER',
+        industry: data.industry,
+        segment: (data.segment as any) || 'BASE_HIT',
+        tier: (data.tier as any) || 'UNSCORED',
+        estMonthlyValue: data.estMonthlyValue,
+        sqftEstimate: data.sqftEstimate,
+        locationsCount: data.locationsCount || 1,
+        whyTheyFit: data.whyTheyFit,
+        dedupKey,
+        source: data.source,
+      },
+    })
 
-  if (exact) {
-    return { company: exact, duplicate: 'exact', candidates: [exact] }
+    return { company, duplicate: false, candidates: [] }
+  } catch (err: any) {
+    // Unique constraint violation — it's a duplicate
+    if (err.code === 'P2002') {
+      const existing = await prisma.company.findUnique({
+        where: { dedupKey },
+      })
+      if (existing) {
+        return { company: existing, duplicate: 'exact', candidates: [existing] }
+      }
+    }
+    throw err
   }
-
-  // Fuzzy check: same domain or similar name + same city
-  const fuzzyMatches = await prisma.company.findMany({
-    where: {
-      AND: [
-        {
-          OR: [
-            { domain: data.domain ? normalizeDomain(data.domain) : undefined },
-            {
-              AND: [
-                { city: data.city ? data.city : undefined },
-                {
-                  nameNormalized: {
-                    search: nameNormalized,
-                  },
-                },
-              ],
-            },
-          ],
-        },
-      ],
-    },
-    take: 5,
-  })
-
-  if (fuzzyMatches.length > 0) {
-    return { duplicate: 'possible', candidates: fuzzyMatches }
-  }
-
-  // Create new company
-  const company = await prisma.company.create({
-    data: {
-      name: data.name,
-      nameNormalized,
-      website: data.website,
-      domain: data.domain ? normalizeDomain(data.domain) : undefined,
-      address: data.address,
-      city: data.city,
-      state: data.state || 'OK',
-      zip: data.zip,
-      territory: (data.territory as any) || 'OTHER',
-      industry: data.industry,
-      segment: (data.segment as any) || 'BASE_HIT',
-      tier: (data.tier as any) || 'UNSCORED',
-      estMonthlyValue: data.estMonthlyValue,
-      sqftEstimate: data.sqftEstimate,
-      locationsCount: data.locationsCount || 1,
-      whyTheyFit: data.whyTheyFit,
-      dedupKey,
-      source: data.source,
-    },
-  })
-
-  return { company, duplicate: false, candidates: [] }
 }
 
 export async function createDraft(

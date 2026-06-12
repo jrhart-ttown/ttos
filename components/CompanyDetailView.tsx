@@ -1,3 +1,5 @@
+import ContactCard from './ContactCard'
+
 interface Company {
   id: string
   name: string
@@ -6,7 +8,7 @@ interface Company {
   city?: string
   state?: string
   zip?: string
-  industry?: string
+  industryIds?: string[]
   whyTheyFit?: string
   createdAt: Date
   source: string
@@ -72,40 +74,7 @@ export default function CompanyDetailView({ company }: { company: Company }) {
           <h2 className="text-lg font-bold mb-3">Contacts</h2>
           <div className="space-y-3">
             {company.contacts.map((contact) => (
-              <div key={contact.id} className="p-3 bg-gray-50 rounded border border-gray-200">
-                <div className="flex justify-between items-start">
-                  <div>
-                    {contact.firstName || contact.lastName ? (
-                      <p className="font-medium">
-                        {contact.firstName} {contact.lastName}
-                      </p>
-                    ) : (
-                      <p className="font-medium text-gray-600">No name</p>
-                    )}
-                    {contact.title && (
-                      <p className="text-sm text-gray-600">{contact.title}</p>
-                    )}
-                  </div>
-                  {contact.isPrimary && (
-                    <span className="px-2 py-1 bg-blue-100 text-blue-800 text-xs font-semibold rounded">
-                      Primary
-                    </span>
-                  )}
-                </div>
-                <div className="mt-2 space-y-1">
-                  {contact.email && (
-                    <p className="text-sm">
-                      <strong>Email:</strong> {contact.email}
-                    </p>
-                  )}
-                  {contact.phone && (
-                    <p className="text-sm">
-                      <strong>Phone:</strong> {contact.phone}
-                    </p>
-                  )}
-                  <p className="text-xs text-gray-600">Type: {contact.contactType}</p>
-                </div>
-              </div>
+              <ContactCard key={contact.id} contact={contact} />
             ))}
           </div>
         </div>

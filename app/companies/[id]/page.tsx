@@ -2,6 +2,7 @@ import { prisma } from '@/lib/prisma'
 import Link from 'next/link'
 import CompanyDetailView from '@/components/CompanyDetailView'
 import InteractionForm from '@/components/InteractionForm'
+import IndustriesSection from '@/components/IndustriesSection'
 import { notFound } from 'next/navigation'
 
 export const metadata = {
@@ -43,6 +44,8 @@ export default async function CompanyDetailPage({
       <div className="grid grid-cols-3 gap-8">
         <div className="col-span-2">
           <CompanyDetailView company={company} />
+
+          <IndustriesSection companyId={company.id} initialIndustryIds={company.industryIds} />
 
           <div className="mt-8 bg-white border border-gray-200 rounded-lg p-6">
             <h2 className="text-xl font-bold mb-4">Relationship Ledger</h2>

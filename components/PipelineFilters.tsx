@@ -1,6 +1,12 @@
 'use client'
 
 import { useRouter, useSearchParams } from 'next/navigation'
+import { useEffect, useState } from 'react'
+
+interface Industry {
+  id: string
+  name: string
+}
 
 const STAGES = ['NEW', 'RESEARCHED', 'QUEUED', 'CONTACTED', 'REPLIED', 'WALKTHROUGH_SCHEDULED', 'PROPOSAL_SENT', 'WON', 'LOST', 'NURTURE']
 const TIERS = ['A', 'B', 'C', 'UNSCORED']
@@ -10,11 +16,20 @@ const SEGMENTS = ['BASE_HIT', 'WHALE']
 export default function PipelineFilters() {
   const router = useRouter()
   const searchParams = useSearchParams()
+  const [industries, setIndustries] = useState<Industry[]>([])
+
+  useEffect(() => {
+    fetch('/api/industries')
+      .then(res => res.json())
+      .then(setIndustries)
+      .catch(console.error)
+  }, [])
 
   const stage = searchParams.get('stage') || ''
   const tier = searchParams.get('tier') || ''
   const territory = searchParams.get('territory') || ''
   const segment = searchParams.get('segment') || ''
+  const industry = searchParams.get('industry') || ''
 
   const handleFilterChange = (
     filterName: string,
@@ -101,7 +116,23 @@ export default function PipelineFilters() {
         </select>
       </div>
 
-      {(stage || tier || territory || segment) && (
+      <div className="flex items-center gap-2">
+        <label className="text-sm font-medium">Industry:</label>
+        <select
+          value={industry}
+          onChange={(e) => handleFilterChange('industry', e.target.value)}
+          className="px-3 py-1 text-sm border border-gray-300 rounded"
+        >
+          <option value="">All</option>
+          {industries.map((ind) => (
+            <option key={ind.id} value={ind.id}>
+              {ind.name}
+            </option>
+          ))}
+        </select>
+      </div>
+
+      {(stage || tier || territory || segment || industry) && (
         <button
           onClick={handleReset}
           className="px-3 py-1 text-sm bg-gray-200 text-gray-700 rounded hover:bg-gray-300"

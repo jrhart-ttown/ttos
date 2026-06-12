@@ -27,7 +27,8 @@ export default function LoginPage() {
         return
       }
 
-      router.push('/pipeline')
+      // Reload to ensure cookie is recognized by middleware
+      window.location.href = '/pipeline'
     } catch (err) {
       setError('An error occurred')
       setLoading(false)

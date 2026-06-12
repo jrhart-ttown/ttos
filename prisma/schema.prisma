@@ -1,0 +1,247 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Company {
+  id                String            @id @default(cuid())
+  name              String
+  nameNormalized    String
+  website           String?
+  domain            String?
+  address           String?
+  city              String?
+  state             String            @default("OK")
+  zip               String?
+  territory         Territory         @default(OTHER)
+  industry          String?
+  segment           Segment           @default(BASE_HIT)
+  tier              Tier              @default(UNSCORED)
+  stage             Stage             @default(NEW)
+  lostReason        String?
+  reengageDate      DateTime?
+  estMonthlyValue   Int?
+  sqftEstimate      Int?
+  locationsCount    Int               @default(1)
+  whyTheyFit        String?
+  dedupKey          String            @unique
+  source            String
+  nextActionDate    DateTime?
+  nextAction        String?
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+
+  contacts          Contact[]
+  interactions      Interaction[]
+  drafts            Draft[]
+  whaleMilestones   WhaleMilestone[]
+  triggerEvents     TriggerEvent[]
+  instantlySync     InstantlySync[]
+}
+
+model Contact {
+  id            String   @id @default(cuid())
+  companyId     String
+  company       Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  firstName     String?
+  lastName      String?
+  title         String?
+  email         String?
+  phone         String?
+  contactType   ContactType
+  isPrimary     Boolean
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  interactions  Interaction[]
+  drafts        Draft[]
+
+  @@unique([companyId, email], where: { email: { not: null } })
+}
+
+model Interaction {
+  id                String   @id @default(cuid())
+  companyId         String
+  company           Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  contactId         String?
+  contact           Contact? @relation(fields: [contactId], references: [id], onDelete: SetNull)
+  date              DateTime
+  channel           Channel
+  summary           String
+  painPoints        String?
+  contractTiming    String?
+  referralsDiscussed String?
+  nextSteps         String?
+  followUpDate      DateTime?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+}
+
+model Draft {
+  id                String   @id @default(cuid())
+  companyId         String
+  company           Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  contactId         String
+  contact           Contact  @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  personalization   String
+  emailBody         String
+  subjectLine       String?
+  status            DraftStatus @default(PENDING)
+  campaignId        String?
+  pushedAt          DateTime?
+  instantlyResponse Json?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  instantlySync     InstantlySync[]
+}
+
+model WhaleMilestone {
+  id          String     @id @default(cuid())
+  companyId   String
+  company     Company    @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  milestone   Milestone
+  date        DateTime
+  notes       String?
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+}
+
+model TriggerEvent {
+  id           String   @id @default(cuid())
+  companyId    String
+  company      Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  type         TriggerType
+  description  String
+  sourceUrl    String?
+  eventDate    DateTime?
+  usedInOutreach Boolean @default(false)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+model InstantlySync {
+  id                 String   @id @default(cuid())
+  draftId            String
+  draft              Draft    @relation(fields: [draftId], references: [id], onDelete: Cascade)
+  companyId          String
+  company            Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  campaignId         String
+  instantlyLeadEmail String
+  pushedAt           DateTime
+  status             SyncStatus
+  errorMessage       String?
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+}
+
+model WebhookEvent {
+  id           String   @id @default(cuid())
+  receivedAt   DateTime @default(now())
+  eventType    String
+  leadEmail    String?
+  payload      Json
+  processed    Boolean  @default(false)
+  createdAt    DateTime @default(now())
+}
+
+model Setting {
+  id    String  @id @default(cuid())
+  key   String  @unique
+  value String
+}
+
+enum Territory {
+  SOUTH_TULSA
+  JENKS
+  BROKEN_ARROW
+  BIXBY
+  MIDTOWN_TULSA
+  OWASSO
+  SAND_SPRINGS
+  SAPULPA
+  OTHER
+}
+
+enum Segment {
+  BASE_HIT
+  WHALE
+}
+
+enum Tier {
+  A
+  B
+  C
+  UNSCORED
+}
+
+enum Stage {
+  NEW
+  RESEARCHED
+  QUEUED
+  CONTACTED
+  REPLIED
+  WALKTHROUGH_SCHEDULED
+  PROPOSAL_SENT
+  WON
+  LOST
+  NURTURE
+}
+
+enum ContactType {
+  DECISION_MAKER
+  OFFICE_MANAGER
+  PRACTICE_ADMIN
+  OPERATIONS_MANAGER
+  GENERAL_OFFICE
+  CONTACT_FORM
+}
+
+enum Channel {
+  EMAIL
+  CALL
+  MEETING
+  WALKTHROUGH
+  EVENT
+  OTHER
+}
+
+enum DraftStatus {
+  PENDING
+  APPROVED
+  PUSHED
+  REJECTED
+}
+
+enum Milestone {
+  INTRODUCTION_SECURED
+  COFFEE_MEETING
+  EVENT_ATTENDANCE
+  SITE_VISIT
+  PROPOSAL_REQUESTED
+  BUDGET_TIMING_IDENTIFIED
+}
+
+enum TriggerType {
+  NEW_OFFICE
+  RELOCATION
+  EXPANSION
+  HIRING_GROWTH
+  LEADERSHIP_CHANGE
+  ADMIN_TURNOVER
+  CONSTRUCTION
+  RENOVATION
+  AWARD
+  SPONSORSHIP
+  ANNOUNCEMENT
+  OTHER
+}
+
+enum SyncStatus {
+  SUCCESS
+  FAILED
+}

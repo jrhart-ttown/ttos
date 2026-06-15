@@ -3,13 +3,13 @@ import ContactCard from './ContactCard'
 interface Company {
   id: string
   name: string
-  website?: string
-  address?: string
-  city?: string
-  state?: string
-  zip?: string
+  website?: string | null
+  address?: string | null
+  city?: string | null
+  state?: string | null
+  zip?: string | null
   industryIds?: string[]
-  whyTheyFit?: string
+  whyTheyFit?: string | null
   createdAt: Date
   source: string
   contacts: any[]
@@ -34,13 +34,6 @@ export default function CompanyDetailView({ company }: { company: Company }) {
             >
               {company.website}
             </a>
-          </div>
-        )}
-
-        {company.industry && (
-          <div>
-            <label className="text-sm font-semibold text-gray-600">Industry</label>
-            <p className="text-sm">{company.industry}</p>
           </div>
         )}
 

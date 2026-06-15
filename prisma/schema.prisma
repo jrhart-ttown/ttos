@@ -37,28 +37,33 @@ model Company {
 
   contacts          Contact[]
   interactions      Interaction[]
-  drafts            Draft[]
+  emailLogs         EmailLog[]
   whaleMilestones   WhaleMilestone[]
   triggerEvents     TriggerEvent[]
   instantlySync     InstantlySync[]
 }
 
 model Contact {
-  id            String   @id @default(cuid())
-  companyId     String
-  company       Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  firstName     String?
-  lastName      String?
-  title         String?
-  email         String?
-  phone         String?
-  contactType   ContactType
-  isPrimary     Boolean
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  id                  String   @id @default(cuid())
+  companyId           String
+  company             Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  firstName           String?
+  lastName            String?
+  title               String?
+  email               String?
+  phone               String?
+  contactType         ContactType
+  isPrimary           Boolean
+  lastEmailDate       DateTime?
+  nextFollowUpDate    DateTime?
+  currentTouchNumber  Int      @default(0)
+  sequenceStatus      SequenceStatus @default(NEW)
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
 
-  interactions  Interaction[]
-  drafts        Draft[]
+  interactions        Interaction[]
+  emailLogs           EmailLog[]
+  contactStrategy     ContactStrategy?
 
     @@unique([companyId, email])
 }
@@ -81,23 +86,29 @@ model Interaction {
   updatedAt         DateTime @updatedAt
 }
 
-model Draft {
-  id                String   @id @default(cuid())
-  companyId         String
-  company           Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  contactId         String
-  contact           Contact  @relation(fields: [contactId], references: [id], onDelete: Cascade)
-  personalization   String
-  emailBody         String
-  subjectLine       String?
-  status            DraftStatus @default(PENDING)
-  campaignId        String?
-  pushedAt          DateTime?
-  instantlyResponse Json?
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
+model EmailLog {
+  id                 String   @id @default(cuid())
+  companyId          String
+  company            Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  contactId          String
+  contact            Contact  @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  touchNumber        Int
+  subject            String
+  emailContent       String
+  result             EmailResult @default(PENDING)
+  sentDate           DateTime @default(now())
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+}
 
-  instantlySync     InstantlySync[]
+model ContactStrategy {
+  id                 String   @id @default(cuid())
+  contactId          String   @unique
+  contact            Contact  @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  recommendedApproach String    // "email_first", "call_immediately", "call_after_email", "email_only", "coordinate_approach"
+  reasoning          String
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
 }
 
 model WhaleMilestone {
@@ -126,8 +137,6 @@ model TriggerEvent {
 
 model InstantlySync {
   id                 String   @id @default(cuid())
-  draftId            String
-  draft              Draft    @relation(fields: [draftId], references: [id], onDelete: Cascade)
   companyId          String
   company            Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
   campaignId         String
@@ -216,11 +225,20 @@ enum Channel {
   OTHER
 }
 
-enum DraftStatus {
+enum SequenceStatus {
+  NEW
+  ACTIVE
+  PAUSED
+  NURTURE_PENDING
+  COMPLETED
+}
+
+enum EmailResult {
   PENDING
-  APPROVED
-  PUSHED
-  REJECTED
+  NO_RESPONSE
+  REPLIED
+  MEETING_SCHEDULED
+  UNSUBSCRIBED
 }
 
 enum Milestone {

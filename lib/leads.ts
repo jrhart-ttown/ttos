@@ -45,7 +45,6 @@ interface UpsertProspectInput {
   state?: string
   zip?: string
   territory?: string
-  industry?: string
   segment?: string
   tier?: string
   estMonthlyValue?: number
@@ -72,7 +71,6 @@ export async function upsertProspect(data: UpsertProspectInput) {
         state: data.state || 'OK',
         zip: data.zip,
         territory: (data.territory as any) || 'OTHER',
-        industry: data.industry,
         segment: (data.segment as any) || 'BASE_HIT',
         tier: (data.tier as any) || 'UNSCORED',
         estMonthlyValue: data.estMonthlyValue,
@@ -97,33 +95,6 @@ export async function upsertProspect(data: UpsertProspectInput) {
     }
     throw err
   }
-}
-
-export async function createDraft(
-  companyId: string,
-  contactId: string,
-  data: {
-    personalization: string
-    emailBody: string
-    subjectLine?: string
-    campaignId?: string
-  }
-) {
-  return prisma.draft.create({
-    data: {
-      companyId,
-      contactId,
-      personalization: data.personalization,
-      emailBody: data.emailBody,
-      subjectLine: data.subjectLine,
-      campaignId: data.campaignId,
-      status: 'PENDING',
-    },
-    include: {
-      company: true,
-      contact: true,
-    },
-  })
 }
 
 export async function logInteraction(

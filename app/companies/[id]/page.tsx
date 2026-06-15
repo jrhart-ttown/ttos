@@ -25,7 +25,6 @@ export default async function CompanyDetailPage({
       whaleMilestones: {
         orderBy: { date: 'desc' },
       },
-      drafts: true,
     },
   })
 

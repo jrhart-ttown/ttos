@@ -23,22 +23,34 @@ export default function Header() {
 
         <nav className="flex gap-4 text-sm">
           <Link
+            href="/research"
+            className="px-3 py-1 hover:bg-gray-700 rounded font-medium text-yellow-300"
+          >
+            Research
+          </Link>
+          <Link
             href="/pipeline"
             className="px-3 py-1 hover:bg-gray-700 rounded"
           >
             Pipeline
           </Link>
           <Link
-            href="/approval-queue"
+            href="/today"
             className="px-3 py-1 hover:bg-gray-700 rounded"
           >
-            Approvals
+            Today
           </Link>
           <Link
-            href="/audit"
+            href="/email-log"
             className="px-3 py-1 hover:bg-gray-700 rounded"
           >
-            Audit
+            Email Log
+          </Link>
+          <Link
+            href="/nurture"
+            className="px-3 py-1 hover:bg-gray-700 rounded"
+          >
+            Nurture
           </Link>
           <Link
             href="/settings"

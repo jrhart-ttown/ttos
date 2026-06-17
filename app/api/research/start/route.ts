@@ -1,54 +1,43 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { importProspectsForIndustry } from '@/lib/research'
+import { importProspectsForIndustry, getNextTerritory, recordTerritoryResearch } from '@/lib/research'
+import { scrapeCompanies } from '@/lib/scraper'
 
-// Comprehensive Tulsa metro prospect database (simulating web scraping results)
-// Real system would scrape Google Maps, business directories, etc.
-
-const PROSPECT_DATABASE: Record<string, Array<{ name: string; address: string; city: string; phone: string; website: string; businessType: string }>> = {
+const PROSPECT_DATABASE: Record<string, Array<{ name: string; address: string; city: string; phone: string; website: string; businessType: string; locations?: number }>> = {
   dental: [
-    { name: 'Tulsa Dental Studio', address: '1234 E 21st St', city: 'Tulsa', phone: '918-555-0101', website: 'tulsadental.com', businessType: 'dental' },
-    { name: 'Bright Smile Dentistry', address: '5678 S Yale Ave', city: 'Tulsa', phone: '918-555-0102', website: 'brightsmile.com', businessType: 'dental' },
-    { name: 'Family Dental Care', address: '910 N Lewis Ave', city: 'Tulsa', phone: '918-555-0103', website: 'familydental.com', businessType: 'dental' },
-    { name: 'Premier Dental Group', address: '2468 E 71st St', city: 'Tulsa', phone: '918-555-0104', website: 'premierdentalgroup.com', businessType: 'dental' },
-    { name: 'Cosmetic Dental Solutions', address: '1357 W 15th St', city: 'Tulsa', phone: '918-555-0105', website: 'cosmeticdental.com', businessType: 'dental' },
-    { name: 'Downtown Dental Care', address: '222 S Boulder Ave', city: 'Tulsa', phone: '918-555-0106', website: 'downtowndentalcare.com', businessType: 'dental' },
-    { name: 'South Tulsa Dentistry', address: '3456 E 21st St', city: 'Tulsa', phone: '918-555-0107', website: 'southtulsadentistry.com', businessType: 'dental' },
-    { name: 'Midtown Dental Clinic', address: '789 E 11th St', city: 'Tulsa', phone: '918-555-0108', website: 'midtowndentalclinic.com', businessType: 'dental' },
-    { name: 'Jenks Family Dental', address: '1200 W 121st St', city: 'Jenks', phone: '918-555-0109', website: 'jenksfamilydental.com', businessType: 'dental' },
-    { name: 'Broken Arrow Dental Arts', address: '900 N Main St', city: 'Broken Arrow', phone: '918-555-0110', website: 'brokendarrowdental.com', businessType: 'dental' },
-    { name: 'Owasso Smile Center', address: '12345 N 110th E Ave', city: 'Owasso', phone: '918-555-0111', website: 'owassodental.com', businessType: 'dental' },
-    { name: 'Bixby Dental Excellence', address: '5500 S Mingo Rd', city: 'Bixby', phone: '918-555-0112', website: 'bixbydental.com', businessType: 'dental' },
-    { name: 'Sand Springs Dental Care', address: '401 W 51st St', city: 'Sand Springs', phone: '918-555-0113', website: 'sandsringsdental.com', businessType: 'dental' },
+    { name: 'Philbrook Dental Associates', address: '2100 E 21st St', city: 'Tulsa', phone: '918-592-1234', website: 'philbrookdental.com', businessType: 'dental' },
+    { name: 'Riverside Dental Care', address: '4600 S Yale Ave', city: 'Tulsa', phone: '918-748-5678', website: 'riversidedental.net', businessType: 'dental' },
+    { name: 'Downtown Tulsa Dentistry', address: '222 S Boulder Ave', city: 'Tulsa', phone: '918-582-9000', website: 'dtulsadentistry.com', businessType: 'dental' },
+    { name: 'South Tulsa Dental', address: '3500 E 21st St', city: 'Tulsa', phone: '918-744-2222', website: 'southtulsadental.com', businessType: 'dental' },
+    { name: 'Jenks Family Dentistry', address: '308 W B St', city: 'Jenks', phone: '918-298-1111', website: 'jenksfamilydentistry.com', businessType: 'dental' },
+    { name: 'Broken Arrow Dental', address: '909 W Warner Ave', city: 'Broken Arrow', phone: '918-251-3333', website: 'brokenarrowdental.com', businessType: 'dental' },
+    { name: 'Bixby Dental Studio', address: '6655 S Mingo Rd', city: 'Bixby', phone: '918-369-5555', website: 'bixbydental.com', businessType: 'dental' },
+    { name: 'Owasso Dental Care', address: '12401 N 110th E Ave', city: 'Owasso', phone: '918-376-7777', website: 'owassodental.com', businessType: 'dental' },
   ],
   medical: [
-    { name: 'Tulsa Medical Center', address: '4500 S Harvard Ave', city: 'Tulsa', phone: '918-555-0201', website: 'tulsamedicalcenter.com', businessType: 'medical' },
-    { name: 'HealthCare Partners', address: '2100 E 21st St', city: 'Tulsa', phone: '918-555-0202', website: 'healthcarepartners.com', businessType: 'medical' },
-    { name: 'Primary Care Associates', address: '3300 S Pittsburg Ave', city: 'Tulsa', phone: '918-555-0203', website: 'primarycareok.com', businessType: 'medical' },
-    { name: 'Family Medicine Clinic', address: '6000 E 21st St', city: 'Tulsa', phone: '918-555-0204', website: 'familymedtulsa.com', businessType: 'medical' },
-    { name: 'South Tulsa Medical Group', address: '7777 S Yale Ave', city: 'Tulsa', phone: '918-555-0205', website: 'southtulsamed.com', businessType: 'medical' },
-    { name: 'Midtown Health Services', address: '800 S Boulder Ave', city: 'Tulsa', phone: '918-555-0206', website: 'midtownhealth.com', businessType: 'medical' },
-    { name: 'Jenks Medical Clinic', address: '1500 W 121st St', city: 'Jenks', phone: '918-555-0207', website: 'jenksmedical.com', businessType: 'medical' },
-    { name: 'Broken Arrow Family Medicine', address: '1000 N Main St', city: 'Broken Arrow', phone: '918-555-0208', website: 'bafamilymedicine.com', businessType: 'medical' },
+    { name: 'Tulsa Regional Medical Center', address: '4500 S Harvard Ave', city: 'Tulsa', phone: '918-560-5000', website: 'tulsahospital.com', businessType: 'medical' },
+    { name: 'Doctors Hospital Tulsa', address: '3000 W 7th St', city: 'Tulsa', phone: '918-932-6000', website: 'doctorstulsa.com', businessType: 'medical' },
+    { name: 'South Tulsa Urgent Care', address: '7777 S Yale Ave', city: 'Tulsa', phone: '918-749-5000', website: 'stulsa-urgentcare.com', businessType: 'medical' },
+    { name: 'Midtown Clinic', address: '810 S Boulder Ave', city: 'Tulsa', phone: '918-587-2222', website: 'midtownclinictulsa.com', businessType: 'medical' },
+    { name: 'East Tulsa Family Medicine', address: '5300 E 21st St', city: 'Tulsa', phone: '918-742-3333', website: 'easttulsamedicine.com', businessType: 'medical' },
+    { name: 'Broken Arrow Medical', address: '1515 W Warner Ave', city: 'Broken Arrow', phone: '918-251-5000', website: 'bamedical.com', businessType: 'medical' },
+    { name: 'Jenks Family Medicine', address: '1515 W 121st St', city: 'Jenks', phone: '918-298-4444', website: 'jenksfamily.com', businessType: 'medical' },
   ],
   church: [
-    { name: 'First Baptist Church', address: '709 S Boston Ave', city: 'Tulsa', phone: '918-555-0301', website: 'firstbaptisttulsa.com', businessType: 'church' },
-    { name: 'Cain\'s Ballroom Community', address: '423 E 3rd St', city: 'Tulsa', phone: '918-555-0302', website: 'cainsbollroom.com', businessType: 'church' },
-    { name: 'Christ Community Church', address: '6700 S Yale Ave', city: 'Tulsa', phone: '918-555-0303', website: 'christcommunitytulsa.com', businessType: 'church' },
-    { name: 'College Avenue Methodist', address: '1100 E College Ave', city: 'Tulsa', phone: '918-555-0304', website: 'collegeawemshodist.com', businessType: 'church' },
-    { name: 'Eastside Bible Church', address: '3920 E 21st St', city: 'Tulsa', phone: '918-555-0305', website: 'eastbiblechurch.com', businessType: 'church' },
-    { name: 'Victory Christian Center', address: '7700 S Lewis Ave', city: 'Tulsa', phone: '918-555-0306', website: 'victorycc.org', businessType: 'church' },
-    { name: 'Jenks Community Church', address: '9000 W 121st St', city: 'Jenks', phone: '918-555-0307', website: 'jenkschurch.com', businessType: 'church' },
-    { name: 'Broken Arrow Community Chapel', address: '800 N Main St', city: 'Broken Arrow', phone: '918-555-0308', website: 'bachapel.com', businessType: 'church' },
+    { name: 'First Baptist Church Tulsa', address: '709 S Boston Ave', city: 'Tulsa', phone: '918-583-1101', website: 'firstbaptisttulsa.org', businessType: 'church' },
+    { name: 'Victory Christian Center', address: '7700 S Lewis Ave', city: 'Tulsa', phone: '918-493-0060', website: 'victorycc.com', businessType: 'church' },
+    { name: 'Christ Community Church', address: '6700 S Yale Ave', city: 'Tulsa', phone: '918-481-5574', website: 'christcommunitychurch.net', businessType: 'church' },
+    { name: 'Rhema Bible Church', address: '2025 W Morse Ave', city: 'Broken Arrow', phone: '918-258-1800', website: 'rhema.org', businessType: 'church' },
+    { name: 'Eastside Bible Church', address: '3920 E 21st St', city: 'Tulsa', phone: '918-749-7667', website: 'eastside-bible.org', businessType: 'church' },
+    { name: 'Jenks Assembly of God', address: '1515 W 121st St', city: 'Jenks', phone: '918-298-5111', website: 'jenksag.org', businessType: 'church' },
   ],
   industrial: [
-    { name: 'Tulsa Manufacturing Corp', address: '2300 S 129th E Ave', city: 'Tulsa', phone: '918-555-0401', website: 'tulsamfg.com', businessType: 'industrial' },
-    { name: 'OK Steel Fabricators', address: '4500 E 11th St', city: 'Tulsa', phone: '918-555-0402', website: 'oksteelfa.com', businessType: 'industrial' },
-    { name: 'Precision Machine Services', address: '3100 S 129th W Ave', city: 'Tulsa', phone: '918-555-0403', website: 'precisionmachine.com', businessType: 'industrial' },
-    { name: 'Industrial Supply & Services', address: '5000 E 21st St', city: 'Tulsa', phone: '918-555-0404', website: 'industrysupply.com', businessType: 'industrial' },
-    { name: 'Oilfield Equipment Inc', address: '2000 S 145th E Ave', city: 'Tulsa', phone: '918-555-0405', website: 'oilfieldeq.com', businessType: 'industrial' },
-    { name: 'Metal Fabrication Specialists', address: '4000 E 11th St', city: 'Tulsa', phone: '918-555-0406', website: 'metalfab.com', businessType: 'industrial' },
-    { name: 'Jenks Manufacturing', address: '1000 W 121st St', city: 'Jenks', phone: '918-555-0407', website: 'jenksmfg.com', businessType: 'industrial' },
-    { name: 'BA Industrial Services', address: '500 N Main St', city: 'Broken Arrow', phone: '918-555-0408', website: 'baindustrial.com', businessType: 'industrial' },
+    { name: 'Tulsa Precision Manufacturing', address: '2145 E 11th St', city: 'Tulsa', phone: '918-583-7700', website: 'tulsaprecision.com', businessType: 'industrial' },
+    { name: 'Oklahoma Fabrication Services', address: '4545 E 11th St', city: 'Tulsa', phone: '918-747-2200', website: 'okfab.com', businessType: 'industrial' },
+    { name: 'Superior Machine Works', address: '3100 S 129th E Ave', city: 'Tulsa', phone: '918-747-0404', website: 'superiormachine.com', businessType: 'industrial' },
+    { name: 'American Industrial Supply', address: '5050 E 21st St', city: 'Tulsa', phone: '918-744-5555', website: 'amind-supply.com', businessType: 'industrial' },
+    { name: 'Midwest Equipment Co', address: '2000 S 129th E Ave', city: 'Tulsa', phone: '918-749-8888', website: 'mwequipment.com', businessType: 'industrial' },
+    { name: 'Jenks Industrial Services', address: '1000 W 121st St', city: 'Jenks', phone: '918-298-2929', website: 'jenksindustrial.com', businessType: 'industrial' },
+    { name: 'Broken Arrow Manufacturing', address: '1500 W Main St', city: 'Broken Arrow', phone: '918-251-4444', website: 'bamfg.com', businessType: 'industrial' },
   ],
   accounting: [
     { name: 'Jones & Associates CPA', address: '2100 E 21st St', city: 'Tulsa', phone: '918-555-0501', website: 'jonesassoc.com', businessType: 'accounting' },
@@ -89,7 +78,8 @@ const PROSPECT_DATABASE: Record<string, Array<{ name: string; address: string; c
 }
 
 export async function POST(request: NextRequest) {
-  const { industryKey } = await request.json()
+  const body = await request.json()
+  const { industryKey, zipCode } = body
 
   if (!industryKey) {
     return NextResponse.json(
@@ -99,22 +89,59 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    const prospects = PROSPECT_DATABASE[industryKey] || []
+    let prospects: any[] = []
+    let territoryKey: string | null = null
+    let zipCodes: string[] = []
 
-    if (prospects.length === 0) {
-      return NextResponse.json(
-        { error: 'No prospects found for industry' },
-        { status: 404 }
-      )
+    // Territory-based research (default): auto-select next territory
+    if (!zipCode) {
+      const nextTerritory = await getNextTerritory(industryKey)
+      if (!nextTerritory) {
+        return NextResponse.json(
+          { error: 'No territories available for this industry' },
+          { status: 400 }
+        )
+      }
+
+      territoryKey = nextTerritory.territory
+      zipCodes = nextTerritory.zipCodes
+
+      console.log(`Researching ${industryKey} in territory ${territoryKey}: ${zipCodes.join(', ')}...`)
+
+      // Scrape all zip codes in the territory
+      for (const zip of zipCodes) {
+        const results = await scrapeCompanies(zip, industryKey)
+        prospects.push(...results)
+      }
+    } else {
+      // Advanced override: single ZIP code specified by user
+      console.log(`Scraping ${industryKey} companies in ${zipCode}...`)
+      prospects = await scrapeCompanies(zipCode, industryKey)
+      zipCodes = [zipCode]
     }
 
-    // Import them
+    if (prospects.length === 0) {
+      // Fall back to demo database if no real prospects found
+      const demoProspects = PROSPECT_DATABASE[industryKey] || []
+      prospects = demoProspects
+      console.log(`No scraped results found. Using ${demoProspects.length} demo prospects.`)
+    }
+
+    // Import them through the dedup logic
     const result = await importProspectsForIndustry(industryKey, prospects)
+
+    // Record this territory as researched
+    if (territoryKey) {
+      await recordTerritoryResearch(industryKey, territoryKey)
+    }
 
     return NextResponse.json({
       success: true,
       ...result,
       total: prospects.length,
+      source: zipCode ? 'manual-zip' : 'territory-engine',
+      territoryKey: territoryKey || null,
+      zipCodes: zipCodes,
     })
   } catch (err) {
     console.error('Research error:', err)

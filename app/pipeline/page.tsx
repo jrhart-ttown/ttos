@@ -11,6 +11,7 @@ interface SearchParams {
   territory?: string
   segment?: string
   industry?: string
+  source?: string
   quickfilter?: string
 }
 
@@ -80,6 +81,7 @@ export default async function PipelinePageAsync({
   if (searchParams.tier) where.tier = searchParams.tier
   if (searchParams.territory) where.territory = searchParams.territory
   if (searchParams.segment) where.segment = searchParams.segment
+  if (searchParams.source) where.source = searchParams.source
   if (searchParams.industry) {
     where.industryIds = {
       has: searchParams.industry,

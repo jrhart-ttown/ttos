@@ -1,15 +1,22 @@
 import { prisma } from './prisma'
+import { getTerritoriesForIndustry, getTerritoryByKey } from './territories'
 
 export const INDUSTRIES = {
-  dental: { name: 'Dental Offices', searchTerm: 'dental offices', count: 120 },
-  medical: { name: 'Medical Offices', searchTerm: 'medical offices', count: 95 },
-  church: { name: 'Churches', searchTerm: 'churches', count: 145 },
+  dental: { name: 'Dental Offices', searchTerm: 'dental offices', count: 120, whale: false },
+  medical: { name: 'Medical Offices', searchTerm: 'medical offices', count: 95, whale: false },
+  church: { name: 'Churches', searchTerm: 'churches', count: 145, whale: false },
   industrial: { name: 'Industrial Offices', searchTerm: 'industrial office', count: 85, whale: true },
-  accounting: { name: 'Accounting Firms', searchTerm: 'accounting firms', count: 70 },
-  law: { name: 'Law Offices', searchTerm: 'law offices', count: 65 },
-  financial: { name: 'Financial Services', searchTerm: 'financial advisor', count: 80 },
+  accounting: { name: 'Accounting Firms', searchTerm: 'accounting firms', count: 70, whale: false },
+  law: { name: 'Law Offices', searchTerm: 'law offices', count: 65, whale: false },
+  financial: { name: 'Financial Services', searchTerm: 'financial advisor', count: 80, whale: false },
   retreat: { name: 'Retreat Centers & Venues', searchTerm: 'retreat center', count: 25, whale: true },
   education: { name: 'Educational Facilities', searchTerm: 'schools offices', count: 55, whale: true },
+  general_offices: {
+    name: 'General Business Offices',
+    searchTerm: 'business office company office',
+    count: 3000,
+    whale: false,
+  },
 }
 
 interface ProspectData {
@@ -19,6 +26,7 @@ interface ProspectData {
   phone?: string
   website?: string
   businessType: string
+  locations?: number
 }
 
 export async function importProspectsForIndustry(
@@ -113,26 +121,29 @@ export async function getProspectsForIndustry(industryKey: string) {
 export async function getIndustryStats(industryKey: string) {
   const prospects = await getProspectsForIndustry(industryKey)
 
-  const contacted = prospects.filter((p) =>
+  // Exclude Do Not Contact leads from stats
+  const activeProspects = prospects.filter((p) => !p.doNotContact)
+
+  const contacted = activeProspects.filter((p) =>
     ['CONTACTED', 'REPLIED', 'PROPOSAL_SENT', 'WON'].includes(p.stage)
   ).length
 
-  const remaining = prospects.length - contacted
+  const remaining = activeProspects.length - contacted
 
   return {
-    total: prospects.length,
+    total: activeProspects.length,
     contacted,
     remaining,
-    percentComplete: prospects.length > 0 ? Math.round((contacted / prospects.length) * 100) : 0,
+    percentComplete: activeProspects.length > 0 ? Math.round((contacted / activeProspects.length) * 100) : 0,
   }
 }
 
 export async function getDailyProspects(industryKey: string, count: number = 25) {
   const prospects = await getProspectsForIndustry(industryKey)
 
-  // Filter to those not yet contacted
+  // Filter to those not yet contacted and not marked Do Not Contact
   const uncontacted = prospects.filter((p) =>
-    ['NEW', 'RESEARCHED'].includes(p.stage)
+    ['NEW', 'RESEARCHED'].includes(p.stage) && !p.doNotContact
   )
 
   // Sort by priority (whales first, then by created date)
@@ -197,6 +208,89 @@ export async function autoDetectWhales(industryKey: string) {
   }
 
   return whales
+}
+
+export async function getNextTerritory(
+  industryKey: string
+): Promise<{ territory: string; zipCodes: string[] } | null> {
+  const territories = getTerritoriesForIndustry(industryKey)
+
+  // Get all researched territories for this industry
+  const researched = await prisma.researchHistory.findMany({
+    where: { industryKey },
+    select: { territoryKey: true },
+  })
+
+  const researchedKeys = new Set(researched.map((r) => r.territoryKey))
+
+  // Find first unreserched territory in priority order
+  for (const territory of territories) {
+    if (!researchedKeys.has(territory.key)) {
+      return {
+        territory: territory.key,
+        zipCodes: territory.zipCodes,
+      }
+    }
+  }
+
+  // All territories researched - start over from beginning
+  if (territories.length > 0) {
+    const firstTerritory = territories[0]
+    return {
+      territory: firstTerritory.key,
+      zipCodes: firstTerritory.zipCodes,
+    }
+  }
+
+  return null
+}
+
+export async function recordTerritoryResearch(
+  industryKey: string,
+  territoryKey: string
+): Promise<void> {
+  await prisma.researchHistory.upsert({
+    where: {
+      industryKey_territoryKey: {
+        industryKey,
+        territoryKey,
+      },
+    },
+    create: {
+      industryKey,
+      territoryKey,
+      researchedAt: new Date(),
+    },
+    update: {
+      researchedAt: new Date(),
+    },
+  })
+}
+
+export async function getResearchProgress(industryKey: string) {
+  const territories = getTerritoriesForIndustry(industryKey)
+  const researched = await prisma.researchHistory.findMany({
+    where: { industryKey },
+    select: { territoryKey: true },
+  })
+
+  const researchedKeys = new Set(researched.map((r) => r.territoryKey))
+
+  return {
+    total: territories.length,
+    completed: researched.length,
+    remaining: territories.length - researched.length,
+    nextTerritory: territories.find((t) => !researchedKeys.has(t.key)) || null,
+    completedTerritories: researched.map((r) => {
+      const territory = getTerritoryByKey(r.territoryKey)
+      return territory
+        ? {
+            key: territory.key,
+            name: territory.name,
+          }
+        : null
+    }),
+  }
 }
 
 export async function getCurrentIndustryFocus(): Promise<string | null> {

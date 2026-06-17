@@ -1,4 +1,8 @@
-import ContactCard from './ContactCard'
+'use client'
+
+import { useState } from 'react'
+import EditableContactCard from './EditableContactCard'
+import EditableCompanyName from './EditableCompanyName'
 
 interface Company {
   id: string
@@ -18,37 +22,148 @@ interface Company {
 }
 
 export default function CompanyDetailView({ company }: { company: Company }) {
+  const [companyName, setCompanyName] = useState(company.name)
+  const [contacts, setContacts] = useState(company.contacts)
+  const [website, setWebsite] = useState(company.website || '')
+  const [address, setAddress] = useState(company.address || '')
+  const [city, setCity] = useState(company.city || '')
+  const [editingDetails, setEditingDetails] = useState(false)
+  const [savingDetails, setSavingDetails] = useState(false)
+
+  const handleContactUpdate = async (contactId: string, data: any) => {
+    try {
+      const res = await fetch(`/api/contacts/${contactId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      })
+
+      if (!res.ok) throw new Error('Failed to update contact')
+
+      setContacts(contacts.map((c: any) => (c.id === contactId ? { ...c, ...data } : c)))
+    } catch (err) {
+      alert('Error updating contact: ' + (err as Error).message)
+    }
+  }
+
+  const handleSaveDetails = async () => {
+    setSavingDetails(true)
+    try {
+      const res = await fetch(`/api/companies/${company.id}/details`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ website: website || null, address: address || null, city: city || null }),
+      })
+
+      if (!res.ok) throw new Error('Failed to update details')
+
+      setEditingDetails(false)
+    } catch (err) {
+      alert('Error: ' + (err as Error).message)
+    } finally {
+      setSavingDetails(false)
+    }
+  }
+
   return (
     <div className="bg-white border border-gray-200 rounded-lg p-6">
-      <h1 className="text-3xl font-bold mb-2">{company.name}</h1>
+      <EditableCompanyName companyId={company.id} initialName={company.name} onUpdate={setCompanyName} />
 
-      <div className="grid grid-cols-2 gap-6 mb-6">
-        {company.website && (
+      {editingDetails ? (
+        <div className="grid grid-cols-2 gap-4 mb-6 p-4 bg-blue-50 rounded border border-blue-200">
+          <div className="col-span-2">
+            <label className="block text-sm font-medium text-gray-700 mb-1">Website</label>
+            <input
+              type="text"
+              value={website}
+              onChange={(e) => setWebsite(e.target.value)}
+              placeholder="e.g., example.com"
+              className="w-full px-3 py-2 border border-gray-300 rounded text-sm"
+            />
+          </div>
+          <div className="col-span-2">
+            <label className="block text-sm font-medium text-gray-700 mb-1">Address</label>
+            <input
+              type="text"
+              value={address}
+              onChange={(e) => setAddress(e.target.value)}
+              placeholder="e.g., 123 Main St"
+              className="w-full px-3 py-2 border border-gray-300 rounded text-sm"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">City</label>
+            <input
+              type="text"
+              value={city}
+              onChange={(e) => setCity(e.target.value)}
+              placeholder="e.g., Tulsa"
+              className="w-full px-3 py-2 border border-gray-300 rounded text-sm"
+            />
+          </div>
+          <div className="flex gap-2 col-span-2 pt-2">
+            <button
+              onClick={handleSaveDetails}
+              disabled={savingDetails}
+              className="px-3 py-2 bg-green-600 text-white rounded text-sm hover:bg-green-700 disabled:opacity-50"
+            >
+              {savingDetails ? 'Saving...' : 'Save'}
+            </button>
+            <button
+              onClick={() => {
+                setWebsite(company.website || '')
+                setAddress(company.address || '')
+                setCity(company.city || '')
+                setEditingDetails(false)
+              }}
+              className="px-3 py-2 bg-gray-300 text-gray-800 rounded text-sm hover:bg-gray-400"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      ) : (
+        <div className="grid grid-cols-2 gap-6 mb-6">
           <div>
             <label className="text-sm font-semibold text-gray-600">Website</label>
-            <a
-              href={company.website}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-blue-600 hover:underline break-all"
-            >
-              {company.website}
-            </a>
+            {website ? (
+              <a
+                href={website.startsWith('http') ? website : `https://${website}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-blue-600 hover:underline break-all text-sm"
+              >
+                {website}
+              </a>
+            ) : (
+              <p className="text-sm text-gray-500">Not set</p>
+            )}
           </div>
-        )}
 
-        {company.address && (
           <div>
             <label className="text-sm font-semibold text-gray-600">Address</label>
-            <p className="text-sm">
-              {company.address}
-              {company.city && `, ${company.city}`}
-              {company.state && `, ${company.state}`}
-              {company.zip && ` ${company.zip}`}
-            </p>
+            {address ? (
+              <p className="text-sm">
+                {address}
+                {city && `, ${city}`}
+              </p>
+            ) : (
+              <p className="text-sm text-gray-500">Not set</p>
+            )}
           </div>
-        )}
 
+          <div className="col-span-2">
+            <button
+              onClick={() => setEditingDetails(true)}
+              className="text-sm px-3 py-1 bg-blue-600 text-white rounded hover:bg-blue-700"
+            >
+              ✏️ Edit Details
+            </button>
+          </div>
+        </div>
+      )}
+
+      <div className="grid grid-cols-2 gap-6 mb-6">
         <div>
           <label className="text-sm font-semibold text-gray-600">Source</label>
           <p className="text-sm">{company.source}</p>
@@ -62,12 +177,16 @@ export default function CompanyDetailView({ company }: { company: Company }) {
         </div>
       )}
 
-      {company.contacts.length > 0 && (
+      {contacts.length > 0 && (
         <div className="mb-6">
           <h2 className="text-lg font-bold mb-3">Contacts</h2>
           <div className="space-y-3">
-            {company.contacts.map((contact) => (
-              <ContactCard key={contact.id} contact={contact} />
+            {contacts.map((contact: any) => (
+              <EditableContactCard
+                key={contact.id}
+                contact={contact}
+                onUpdate={(data) => handleContactUpdate(contact.id, data)}
+              />
             ))}
           </div>
         </div>

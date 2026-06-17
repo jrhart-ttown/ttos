@@ -5,7 +5,7 @@ export async function PATCH(
   request: NextRequest,
   { params }: { params: { id: string } }
 ) {
-  const { firstName, lastName, title, contactType } = await request.json()
+  const { firstName, lastName, title, email, phone, contactType } = await request.json()
 
   try {
     const contact = await prisma.contact.update({
@@ -14,6 +14,8 @@ export async function PATCH(
         ...(firstName && { firstName }),
         ...(lastName && { lastName }),
         ...(title && { title }),
+        ...(email && { email }),
+        ...(phone && { phone }),
         ...(contactType && { contactType }),
       },
     })

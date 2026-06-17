@@ -30,6 +30,7 @@ export default function PipelineFilters() {
   const territory = searchParams.get('territory') || ''
   const segment = searchParams.get('segment') || ''
   const industry = searchParams.get('industry') || ''
+  const source = searchParams.get('source') || ''
 
   const handleFilterChange = (
     filterName: string,
@@ -132,7 +133,18 @@ export default function PipelineFilters() {
         </select>
       </div>
 
-      {(stage || tier || territory || segment || industry) && (
+      <div className="flex items-center gap-2">
+        <label className="text-sm font-medium">Source:</label>
+        <input
+          type="text"
+          value={source}
+          onChange={(e) => handleFilterChange('source', e.target.value)}
+          placeholder="e.g., research_dental, csv_import"
+          className="px-3 py-1 text-sm border border-gray-300 rounded"
+        />
+      </div>
+
+      {(stage || tier || territory || segment || industry || source) && (
         <button
           onClick={handleReset}
           className="px-3 py-1 text-sm bg-gray-200 text-gray-700 rounded hover:bg-gray-300"

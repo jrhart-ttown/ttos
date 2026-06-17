@@ -22,6 +22,7 @@ model Company {
   segment           Segment           @default(BASE_HIT)
   tier              Tier              @default(UNSCORED)
   stage             Stage             @default(NEW)
+  doNotContact      Boolean           @default(false)
   lostReason        String?
   reengageDate      DateTime?
   estMonthlyValue   Int?
@@ -168,6 +169,18 @@ model Setting {
   id    String  @id @default(cuid())
   key   String  @unique
   value String
+}
+
+model ResearchHistory {
+  id             String   @id @default(cuid())
+  industryKey    String
+  territoryKey   String
+  researchedAt   DateTime @default(now())
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@unique([industryKey, territoryKey])
+  @@index([industryKey])
 }
 
 enum Territory {

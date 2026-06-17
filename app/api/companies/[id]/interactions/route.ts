@@ -8,18 +8,23 @@ export async function POST(
   const data = await request.json()
 
   try {
+    const parseLocalDate = (dateStr: string) => {
+      const [year, month, day] = dateStr.split('-').map(Number)
+      return new Date(year, month - 1, day)
+    }
+
     const interaction = await prisma.interaction.create({
       data: {
         companyId: params.id,
         contactId: data.contactId || undefined,
-        date: new Date(data.date),
+        date: parseLocalDate(data.date),
         channel: data.channel,
         summary: data.summary,
         painPoints: data.painPoints || undefined,
         contractTiming: data.contractTiming || undefined,
         referralsDiscussed: data.referralsDiscussed || undefined,
         nextSteps: data.nextSteps || undefined,
-        followUpDate: data.followUpDate ? new Date(data.followUpDate) : undefined,
+        followUpDate: data.followUpDate ? parseLocalDate(data.followUpDate) : undefined,
       },
     })
 
@@ -28,7 +33,7 @@ export async function POST(
       await prisma.company.update({
         where: { id: params.id },
         data: {
-          nextActionDate: new Date(data.followUpDate),
+          nextActionDate: parseLocalDate(data.followUpDate),
         },
       })
     }

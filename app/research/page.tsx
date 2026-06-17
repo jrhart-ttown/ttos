@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic'
+
 import { INDUSTRIES } from '@/lib/research'
 import ResearchDashboard from '@/components/ResearchDashboard'
 

@@ -121,10 +121,10 @@ export async function POST(request: NextRequest) {
     }
 
     if (prospects.length === 0) {
-      // Fall back to demo database if no real prospects found
-      const demoProspects = PROSPECT_DATABASE[industryKey] || []
-      prospects = demoProspects
-      console.log(`No scraped results found. Using ${demoProspects.length} demo prospects.`)
+      return NextResponse.json(
+        { error: `No companies found for ${industryKey} in ${zipCodes.join(', ')}. Scraper may need debugging.` },
+        { status: 400 }
+      )
     }
 
     // Import them through the dedup logic

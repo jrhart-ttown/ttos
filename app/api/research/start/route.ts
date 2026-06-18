@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { importProspectsForIndustry, getNextTerritory, recordTerritoryResearch, INDUSTRIES } from '@/lib/research'
-import { requireResearchProvider } from '@/lib/research-providers'
+import { searchWithFallback } from '@/lib/research-providers'
 import { validateProspectForImport, isProdSafeToImport } from '@/lib/research-validation'
 
 export async function POST(request: NextRequest) {
@@ -12,8 +12,6 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    // Get research provider (required, will throw if not configured)
-    const provider = requireResearchProvider()
     const industry = INDUSTRIES[industryKey as keyof typeof INDUSTRIES]
     if (!industry) {
       return NextResponse.json({ error: `Unknown industry: ${industryKey}` }, { status: 400 })
@@ -58,20 +56,22 @@ export async function POST(request: NextRequest) {
       })
     }
 
-    // Perform research via provider
+    // Perform research with fallback providers
     const allResults = []
     let totalRawCount = 0
     let totalValidCount = 0
     let totalRejectedCount = 0
     const rejectionSummary: Record<string, number> = {}
+    let usedProvider = ''
 
     for (const query of searchQuery) {
-      const result = await provider.search({
+      const result = await searchWithFallback({
         industryKey,
         ...query,
       })
 
       allResults.push(result)
+      usedProvider = result.provider
       totalRawCount += result.rawResultCount
       totalValidCount += result.validResultCount
       totalRejectedCount += result.rejectedCount
@@ -81,18 +81,12 @@ export async function POST(request: NextRequest) {
       })
 
       if (result.error) {
-        console.error(`[Research] Provider error for ${query.zipCode}: ${result.error}`)
+        console.warn(`[Research] Provider ${result.provider} error: ${result.error}`)
+      } else {
+        console.log(
+          `[Research] ${result.provider} found ${result.rawResultCount} results for ${query.zipCode}`
+        )
       }
-    }
-
-    // Production safety check
-    if (!isProdSafeToImport(totalRawCount, provider.name)) {
-      return NextResponse.json(
-        {
-          error: 'Research provider failed or returned no results. Territory not marked as researched.',
-        },
-        { status: 400 }
-      )
     }
 
     // Validate and collect prospects
@@ -107,24 +101,19 @@ export async function POST(request: NextRequest) {
       })
 
     if (validProspects.length === 0) {
-      // Check if provider failed
-      const providerErrors = allResults.filter((r) => r.error).map((r) => r.error)
-      if (providerErrors.length > 0) {
-        return NextResponse.json(
-          {
-            error: `Research provider error: ${providerErrors[0]}`,
-            provider: provider.name,
-          },
-          { status: 400 }
-        )
-      }
+      const errorMsg =
+        totalRawCount === 0
+          ? `No companies found for ${industryKey} in ${zipCodes.join(', ')}. Provider: ${usedProvider}`
+          : `Found ${totalRawCount} results but none passed validation. Rejection reasons: ${Object.entries(rejectionSummary)
+              .map(([k, v]) => `${k}: ${v}`)
+              .join(', ')}`
 
       return NextResponse.json(
         {
-          error: `No valid companies found for ${industryKey} in ${zipCodes.join(', ')}`,
+          error: errorMsg,
+          provider: usedProvider,
           rawResults: totalRawCount,
           rejectionReasons: rejectionSummary,
-          provider: provider.name,
         },
         { status: 400 }
       )
@@ -133,7 +122,7 @@ export async function POST(request: NextRequest) {
     // Import through dedup logic
     const importResult = await importProspectsForIndustry(industryKey, validProspects)
 
-    // Record territory as researched (only if we got valid raw results, even if some were rejected)
+    // Record territory as researched (only if we got valid raw results)
     if (territoryKey && totalRawCount > 0) {
       await recordTerritoryResearch(industryKey, territoryKey)
     }
@@ -141,7 +130,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       success: true,
       ...importResult,
-      provider: provider.name,
+      provider: usedProvider,
       source: zipCode ? 'manual-zip' : 'territory-engine',
       territoryKey: territoryKey || null,
       zipCodes,

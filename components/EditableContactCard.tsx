@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import CopyButton from './CopyButton'
 
 export default function EditableContactCard({
   contact,
@@ -39,7 +40,12 @@ export default function EditableContactCard({
               {contact.firstName} {contact.lastName}
             </p>
             {contact.title && <p className="text-xs text-gray-600">{contact.title}</p>}
-            {contact.email && <p className="text-xs text-blue-600">{contact.email}</p>}
+            {contact.email && (
+              <div className="flex items-center gap-2 mt-1">
+                <p className="text-xs text-blue-600">{contact.email}</p>
+                <CopyButton value={contact.email} label="📋" />
+              </div>
+            )}
             {contact.phone && <p className="text-xs text-gray-600">{contact.phone}</p>}
             {contact.contactType && <p className="text-xs text-gray-600 mt-1">{contact.contactType}</p>}
           </div>

@@ -37,7 +37,7 @@ export async function POST(request: NextRequest) {
       console.log(`[Research] Territory-based: ${industryKey} in ${territoryKey} (${zipCodes.join(', ')})`)
 
       for (const zip of zipCodes) {
-        const city = this.extractCityFromZip?.(zip) || 'Tulsa'
+        const city = extractCityFromZip(zip)
         searchQuery.push({
           searchTerms: INDUSTRY_SEARCH_TERMS[industryKey] || [industry.searchTerm],
           zipCode: zip,
@@ -47,7 +47,7 @@ export async function POST(request: NextRequest) {
     } else {
       // Advanced override: single ZIP code specified by user
       console.log(`[Research] Manual zip: ${industryKey} in ${zipCode}`)
-      const city = this.extractCityFromZip?.(zipCode) || 'Tulsa'
+      const city = extractCityFromZip(zipCode)
       zipCodes = [zipCode]
       searchQuery.push({
         searchTerms: INDUSTRY_SEARCH_TERMS[industryKey] || [industry.searchTerm],
@@ -159,4 +159,24 @@ const INDUSTRY_SEARCH_TERMS: Record<string, string[]> = {
   retreat: ['event venue', 'conference center', 'retreat center', 'event space'],
   education: ['school', 'educational facility', 'university office', 'college'],
   general_offices: ['business office', 'company office', 'professional office'],
+}
+
+const ZIP_TO_CITY: Record<string, string> = {
+  '74103': 'Tulsa',
+  '74104': 'Tulsa',
+  '74105': 'Tulsa',
+  '74114': 'Tulsa',
+  '74135': 'Tulsa',
+  '74008': 'Broken Arrow',
+  '74011': 'Broken Arrow',
+  '74012': 'Broken Arrow',
+  '74020': 'Jenks',
+  '74037': 'Jenks',
+  '74063': 'Owasso',
+  '74055': 'Bixby',
+  '74069': 'Sand Springs',
+}
+
+function extractCityFromZip(zipCode: string): string {
+  return ZIP_TO_CITY[zipCode] || 'Tulsa'
 }

@@ -2,8 +2,6 @@ import { GooglePlacesProvider } from './google-places'
 import { ScraperProvider } from './scraper'
 import { ResearchProvider, ResearchResult, ResearchQuery } from './types'
 
-export { ResearchProvider, ResearchQuery, ResearchResult, RawProspect } from './types'
-
 export function getProvidersInOrder(): ResearchProvider[] {
   const providers: ResearchProvider[] = []
 

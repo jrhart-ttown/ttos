@@ -29,6 +29,16 @@ export default function CompanyDetailView({ company }: { company: Company }) {
   const [city, setCity] = useState(company.city || '')
   const [editingDetails, setEditingDetails] = useState(false)
   const [savingDetails, setSavingDetails] = useState(false)
+  const [addingContact, setAddingContact] = useState(false)
+  const [newContactData, setNewContactData] = useState({
+    firstName: '',
+    lastName: '',
+    email: '',
+    phone: '',
+    title: '',
+    contactType: 'GENERAL_OFFICE',
+  })
+  const [savingContact, setSavingContact] = useState(false)
 
   const handleContactUpdate = async (contactId: string, data: any) => {
     try {
@@ -43,6 +53,40 @@ export default function CompanyDetailView({ company }: { company: Company }) {
       setContacts(contacts.map((c: any) => (c.id === contactId ? { ...c, ...data } : c)))
     } catch (err) {
       alert('Error updating contact: ' + (err as Error).message)
+    }
+  }
+
+  const handleAddContact = async () => {
+    if (!newContactData.email && !newContactData.phone) {
+      alert('Email or phone is required')
+      return
+    }
+
+    setSavingContact(true)
+    try {
+      const res = await fetch(`/api/companies/${company.id}/contacts`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(newContactData),
+      })
+
+      if (!res.ok) throw new Error('Failed to create contact')
+
+      const newContact = await res.json()
+      setContacts([...contacts, newContact])
+      setAddingContact(false)
+      setNewContactData({
+        firstName: '',
+        lastName: '',
+        email: '',
+        phone: '',
+        title: '',
+        contactType: 'GENERAL_OFFICE',
+      })
+    } catch (err) {
+      alert('Error adding contact: ' + (err as Error).message)
+    } finally {
+      setSavingContact(false)
     }
   }
 
@@ -177,20 +221,140 @@ export default function CompanyDetailView({ company }: { company: Company }) {
         </div>
       )}
 
-      {contacts.length > 0 && (
-        <div className="mb-6">
-          <h2 className="text-lg font-bold mb-3">Contacts</h2>
-          <div className="space-y-3">
-            {contacts.map((contact: any) => (
-              <EditableContactCard
-                key={contact.id}
-                contact={contact}
-                onUpdate={(data) => handleContactUpdate(contact.id, data)}
-              />
-            ))}
-          </div>
+      <div className="mb-6">
+        <h2 className="text-lg font-bold mb-3">Contacts</h2>
+        <div className="space-y-3">
+          {contacts.map((contact: any) => (
+            <EditableContactCard
+              key={contact.id}
+              contact={contact}
+              onUpdate={(data) => handleContactUpdate(contact.id, data)}
+            />
+          ))}
+
+          {addingContact && (
+            <div className="p-3 bg-blue-50 rounded border border-blue-200">
+              <h4 className="font-semibold text-blue-900 mb-3">Add New Contact</h4>
+              <div className="space-y-3">
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-medium text-gray-700 mb-1">First Name</label>
+                    <input
+                      type="text"
+                      value={newContactData.firstName}
+                      onChange={(e) => setNewContactData({ ...newContactData, firstName: e.target.value })}
+                      className="w-full px-2 py-1 border border-gray-300 rounded text-sm"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-700 mb-1">Last Name</label>
+                    <input
+                      type="text"
+                      value={newContactData.lastName}
+                      onChange={(e) => setNewContactData({ ...newContactData, lastName: e.target.value })}
+                      className="w-full px-2 py-1 border border-gray-300 rounded text-sm"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-700 mb-1">Email</label>
+                    <input
+                      type="email"
+                      value={newContactData.email}
+                      onChange={(e) => setNewContactData({ ...newContactData, email: e.target.value })}
+                      className="w-full px-2 py-1 border border-gray-300 rounded text-sm"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-700 mb-1">Phone</label>
+                    <input
+                      type="tel"
+                      value={newContactData.phone}
+                      onChange={(e) => setNewContactData({ ...newContactData, phone: e.target.value })}
+                      className="w-full px-2 py-1 border border-gray-300 rounded text-sm"
+                    />
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">Title</label>
+                  <input
+                    type="text"
+                    value={newContactData.title}
+                    onChange={(e) => setNewContactData({ ...newContactData, title: e.target.value })}
+                    className="w-full px-2 py-1 border border-gray-300 rounded text-sm"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-1">Contact Type</label>
+                  <select
+                    value={newContactData.contactType}
+                    onChange={(e) => setNewContactData({ ...newContactData, contactType: e.target.value })}
+                    className="w-full px-2 py-1 border border-gray-300 rounded text-sm"
+                  >
+                    {[
+                      'DECISION_MAKER',
+                      'OFFICE_MANAGER',
+                      'PRACTICE_ADMIN',
+                      'OPERATIONS_MANAGER',
+                      'GENERAL_OFFICE',
+                      'CONTACT_FORM',
+                    ].map((t) => (
+                      <option key={t} value={t}>
+                        {t.replace(/_/g, ' ')}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div className="flex gap-2 pt-2">
+                  <button
+                    onClick={handleAddContact}
+                    disabled={savingContact}
+                    className="px-3 py-1 bg-green-600 text-white rounded text-sm hover:bg-green-700 disabled:opacity-50"
+                  >
+                    {savingContact ? 'Saving...' : 'Save Contact'}
+                  </button>
+                  <button
+                    onClick={() => {
+                      setAddingContact(false)
+                      setNewContactData({
+                        firstName: '',
+                        lastName: '',
+                        email: '',
+                        phone: '',
+                        title: '',
+                        contactType: 'GENERAL_OFFICE',
+                      })
+                    }}
+                    className="px-3 py-1 bg-gray-300 text-gray-800 rounded text-sm hover:bg-gray-400"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {contacts.length === 0 && !addingContact && (
+            <div className="p-4 bg-gray-50 rounded border border-gray-200 text-center">
+              <p className="text-sm text-gray-600 mb-3">No contacts yet</p>
+              <button
+                onClick={() => setAddingContact(true)}
+                className="text-sm px-3 py-1 bg-blue-600 text-white rounded hover:bg-blue-700"
+              >
+                + Add Contact
+              </button>
+            </div>
+          )}
+
+          {contacts.length > 0 && !addingContact && (
+            <button
+              onClick={() => setAddingContact(true)}
+              className="text-sm px-3 py-1 bg-blue-600 text-white rounded hover:bg-blue-700"
+            >
+              + Add Another Contact
+            </button>
+          )}
         </div>
-      )}
+      </div>
 
       {company.triggerEvents.length > 0 && (
         <div>

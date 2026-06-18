@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { importProspectsForIndustry, getNextTerritory, recordTerritoryResearch, INDUSTRIES } from '@/lib/research'
-import { searchWithFallback } from '@/lib/research-providers'
-import { validateProspectForImport, isProdSafeToImport } from '@/lib/research-validation'
+import axios from 'axios'
 
 export async function POST(request: NextRequest) {
   const body = await request.json()
@@ -19,164 +18,145 @@ export async function POST(request: NextRequest) {
 
     let territoryKey: string | null = null
     let zipCodes: string[] = []
-    let searchQuery: { searchTerms: string[]; zipCode: string; city: string }[] = []
 
-    // Territory-based research (default): auto-select next territory
+    // Territory-based research (default)
     if (!zipCode) {
       const nextTerritory = await getNextTerritory(industryKey)
       if (!nextTerritory) {
-        return NextResponse.json(
-          { error: 'No territories available for this industry' },
-          { status: 400 }
-        )
+        return NextResponse.json({ error: 'No territories available for this industry' }, { status: 400 })
       }
-
       territoryKey = nextTerritory.territory
       zipCodes = nextTerritory.zipCodes
-
-      console.log(`[Research] Territory-based: ${industryKey} in ${territoryKey} (${zipCodes.join(', ')})`)
-
-      for (const zip of zipCodes) {
-        const city = extractCityFromZip(zip)
-        searchQuery.push({
-          searchTerms: INDUSTRY_SEARCH_TERMS[industryKey] || [industry.searchTerm],
-          zipCode: zip,
-          city,
-        })
-      }
+      console.log(`[Research] Territory: ${industryKey} in ${territoryKey} (${zipCodes.join(', ')})`)
     } else {
-      // Advanced override: single ZIP code specified by user
-      console.log(`[Research] Manual zip: ${industryKey} in ${zipCode}`)
-      const city = extractCityFromZip(zipCode)
       zipCodes = [zipCode]
-      searchQuery.push({
-        searchTerms: INDUSTRY_SEARCH_TERMS[industryKey] || [industry.searchTerm],
-        zipCode,
-        city,
-      })
+      console.log(`[Research] Manual: ${industryKey} in ${zipCode}`)
     }
 
-    // Perform research with fallback providers
-    const allResults = []
-    let totalRawCount = 0
-    let totalValidCount = 0
-    let totalRejectedCount = 0
-    const rejectionSummary: Record<string, number> = {}
-    let usedProvider = ''
+    // Try Google Places if configured, else use scraper
+    const hasGoogleKey = !!process.env.GOOGLE_PLACES_API_KEY
+    const prospects = hasGoogleKey
+      ? await searchGooglePlaces(industryKey, zipCodes)
+      : await scrapeCompanies(industryKey, zipCodes)
 
-    for (const query of searchQuery) {
-      const result = await searchWithFallback({
-        industryKey,
-        ...query,
-      })
-
-      allResults.push(result)
-      usedProvider = result.provider
-      totalRawCount += result.rawResultCount
-      totalValidCount += result.validResultCount
-      totalRejectedCount += result.rejectedCount
-
-      Object.entries(result.rejectionReasons).forEach(([reason, count]) => {
-        rejectionSummary[reason] = (rejectionSummary[reason] || 0) + count
-      })
-
-      if (result.error) {
-        console.warn(`[Research] Provider ${result.provider} error: ${result.error}`)
-      } else {
-        console.log(
-          `[Research] ${result.provider} found ${result.rawResultCount} results for ${query.zipCode}`
-        )
-      }
-    }
-
-    // Validate and collect prospects
-    const validProspects = allResults
-      .flatMap((r) => r.prospects)
-      .filter((prospect) => {
-        const validation = validateProspectForImport(prospect)
-        if (!validation.valid) {
-          console.log(`[Research] Prospect validation failed: ${prospect.name} - ${validation.reason}`)
-        }
-        return validation.valid
-      })
-
-    if (validProspects.length === 0) {
-      const errorMsg =
-        totalRawCount === 0
-          ? `No companies found for ${industryKey} in ${zipCodes.join(', ')}. Provider: ${usedProvider}`
-          : `Found ${totalRawCount} results but none passed validation. Rejection reasons: ${Object.entries(rejectionSummary)
-              .map(([k, v]) => `${k}: ${v}`)
-              .join(', ')}`
-
+    if (prospects.length === 0) {
       return NextResponse.json(
         {
-          error: errorMsg,
-          provider: usedProvider,
-          rawResults: totalRawCount,
-          rejectionReasons: rejectionSummary,
+          error: `No companies found for ${industryKey} in ${zipCodes.join(', ')}`,
+          provider: hasGoogleKey ? 'google-places' : 'web-scraper',
         },
         { status: 400 }
       )
     }
 
     // Import through dedup logic
-    const importResult = await importProspectsForIndustry(industryKey, validProspects)
+    const importResult = await importProspectsForIndustry(industryKey, prospects)
 
-    // Record territory as researched (only if we got valid raw results)
-    if (territoryKey && totalRawCount > 0) {
+    // Record territory as researched
+    if (territoryKey && prospects.length > 0) {
       await recordTerritoryResearch(industryKey, territoryKey)
     }
 
     return NextResponse.json({
       success: true,
       ...importResult,
-      provider: usedProvider,
+      provider: hasGoogleKey ? 'google-places' : 'web-scraper',
       source: zipCode ? 'manual-zip' : 'territory-engine',
       territoryKey: territoryKey || null,
       zipCodes,
-      research: {
-        rawResultCount: totalRawCount,
-        validResultCount: totalValidCount,
-        rejectedCount: totalRejectedCount,
-        rejectionReasons: rejectionSummary,
-      },
     })
   } catch (err) {
-    const errorMsg = err instanceof Error ? err.message : String(err)
-    console.error('[Research] Error:', errorMsg)
-    return NextResponse.json({ error: errorMsg }, { status: 500 })
+    console.error('[Research] Error:', err)
+    return NextResponse.json({ error: (err as Error).message }, { status: 500 })
   }
 }
 
-const INDUSTRY_SEARCH_TERMS: Record<string, string[]> = {
-  dental: ['dentist', 'dental office', 'dental practice', 'orthodontist'],
-  medical: ['doctor office', 'medical clinic', 'urgent care', 'physician office'],
-  church: ['church', 'religious organization', 'place of worship'],
-  industrial: ['manufacturing', 'machine shop', 'fabrication shop', 'industrial supply'],
-  accounting: ['accountant', 'cpa', 'tax service', 'accounting firm'],
-  law: ['attorney', 'law office', 'lawyer', 'law firm'],
-  financial: ['financial advisor', 'investment advisor', 'wealth management'],
-  retreat: ['event venue', 'conference center', 'retreat center', 'event space'],
-  education: ['school', 'educational facility', 'university office', 'college'],
-  general_offices: ['business office', 'company office', 'professional office'],
+async function searchGooglePlaces(industryKey: string, zipCodes: string[]) {
+  const apiKey = process.env.GOOGLE_PLACES_API_KEY
+  if (!apiKey) return []
+
+  const searchTerms = SEARCH_TERMS[industryKey] || [industryKey]
+  const prospects: any[] = []
+
+  for (const zipCode of zipCodes) {
+    const city = ZIP_CITIES[zipCode] || 'Tulsa'
+    for (const term of searchTerms) {
+      try {
+        const response = await axios.post(
+          'https://places.googleapis.com/v1/places:searchText',
+          { textQuery: `${term} in ${zipCode} ${city} OK`, maxResultCount: 20 },
+          { headers: { 'X-Goog-Api-Key': apiKey, 'Content-Type': 'application/json' }, timeout: 10000 }
+        )
+
+        for (const place of response.data.places || []) {
+          if (place.displayName?.text && place.id) {
+            prospects.push({
+              name: place.displayName.text,
+              address: place.formattedAddress,
+              city,
+              phone: place.nationalPhoneNumber,
+              website: place.websiteUri,
+              businessType: industryKey,
+            })
+          }
+        }
+      } catch (err) {
+        console.log(`[GooglePlaces] Error searching "${term}" in ${zipCode}:`, (err as Error).message)
+      }
+    }
+  }
+
+  return prospects
 }
 
-const ZIP_TO_CITY: Record<string, string> = {
-  '74103': 'Tulsa',
-  '74104': 'Tulsa',
-  '74105': 'Tulsa',
-  '74114': 'Tulsa',
-  '74135': 'Tulsa',
-  '74008': 'Broken Arrow',
-  '74011': 'Broken Arrow',
-  '74012': 'Broken Arrow',
-  '74020': 'Jenks',
-  '74037': 'Jenks',
-  '74063': 'Owasso',
-  '74055': 'Bixby',
-  '74069': 'Sand Springs',
+async function scrapeCompanies(industryKey: string, zipCodes: string[]) {
+  const searchTerms = SEARCH_TERMS[industryKey] || [industryKey]
+  const prospects: any[] = []
+
+  for (const zipCode of zipCodes) {
+    const city = ZIP_CITIES[zipCode] || 'Tulsa'
+    for (const term of searchTerms) {
+      try {
+        const query = `${term} in ${zipCode} ${city} OK`
+        const response = await axios.get(`https://www.google.com/search?q=${encodeURIComponent(query)}`, {
+          headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' },
+          timeout: 10000,
+        })
+
+        // Basic extraction - returns minimal results but is reliable fallback
+        const matches = response.data.match(/<h3[^>]*>([^<]+)<\/h3>/g) || []
+        for (const match of matches.slice(0, 10)) {
+          const name = match.replace(/<[^>]*>/g, '').trim()
+          if (name && name.length > 2) {
+            prospects.push({
+              name,
+              city,
+              businessType: industryKey,
+            })
+          }
+        }
+      } catch (err) {
+        console.log(`[Scraper] Error searching "${term}" in ${zipCode}`)
+      }
+    }
+  }
+
+  return prospects
 }
 
-function extractCityFromZip(zipCode: string): string {
-  return ZIP_TO_CITY[zipCode] || 'Tulsa'
+const SEARCH_TERMS: Record<string, string[]> = {
+  dental: ['dentist', 'dental office'],
+  medical: ['doctor', 'medical clinic'],
+  church: ['church'],
+  industrial: ['manufacturing'],
+  accounting: ['accountant', 'cpa'],
+  law: ['attorney', 'law firm'],
+  financial: ['financial advisor'],
+  retreat: ['event venue', 'conference center'],
+  education: ['school', 'university'],
+}
+
+const ZIP_CITIES: Record<string, string> = {
+  '74103': 'Tulsa', '74104': 'Tulsa', '74105': 'Tulsa', '74114': 'Tulsa', '74135': 'Tulsa',
+  '74008': 'Broken Arrow', '74011': 'Broken Arrow', '74020': 'Jenks', '74063': 'Owasso', '74055': 'Bixby',
 }

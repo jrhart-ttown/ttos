@@ -88,6 +88,13 @@ async function searchGooglePlaces(industryKey: string, zipCodes: string[]) {
           { headers: { 'X-Goog-Api-Key': apiKey, 'Content-Type': 'application/json' }, timeout: 10000 }
         )
 
+        console.log(`[GooglePlaces] Response for "${term}" in ${zipCode}:`, JSON.stringify(response.data, null, 2))
+
+        if (response.data.error) {
+          console.error(`[GooglePlaces] API error: ${response.data.error.message}`)
+          continue
+        }
+
         for (const place of response.data.places || []) {
           if (place.displayName?.text && place.id) {
             prospects.push({
@@ -101,7 +108,7 @@ async function searchGooglePlaces(industryKey: string, zipCodes: string[]) {
           }
         }
       } catch (err) {
-        console.log(`[GooglePlaces] Error searching "${term}" in ${zipCode}:`, (err as Error).message)
+        console.error(`[GooglePlaces] Error searching "${term}" in ${zipCode}:`, (err as Error).message, (err as any).response?.data)
       }
     }
   }

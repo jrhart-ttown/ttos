@@ -107,11 +107,24 @@ export async function POST(request: NextRequest) {
       })
 
     if (validProspects.length === 0) {
+      // Check if provider failed
+      const providerErrors = allResults.filter((r) => r.error).map((r) => r.error)
+      if (providerErrors.length > 0) {
+        return NextResponse.json(
+          {
+            error: `Research provider error: ${providerErrors[0]}`,
+            provider: provider.name,
+          },
+          { status: 400 }
+        )
+      }
+
       return NextResponse.json(
         {
           error: `No valid companies found for ${industryKey} in ${zipCodes.join(', ')}`,
           rawResults: totalRawCount,
           rejectionReasons: rejectionSummary,
+          provider: provider.name,
         },
         { status: 400 }
       )

@@ -21,7 +21,8 @@ export class GooglePlacesProvider implements ResearchProvider {
     }
 
     if (!this.isConfigured()) {
-      result.error = 'Google Places API key not configured'
+      result.error = 'GOOGLE_PLACES_API_KEY environment variable not configured'
+      console.error('[GooglePlaces] API key not configured. Set GOOGLE_PLACES_API_KEY env var.')
       return result
     }
 

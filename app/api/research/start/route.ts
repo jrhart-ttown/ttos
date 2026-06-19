@@ -33,17 +33,29 @@ export async function POST(request: NextRequest) {
       console.log(`[Research] Manual: ${industryKey} in ${zipCode}`)
     }
 
-    // Try Google Places if configured, else use scraper
+    // Try Google Places first if key exists, then fall back to scraper
+    let prospects: any[] = []
+    let provider = 'none'
+
     const hasGoogleKey = !!process.env.GOOGLE_PLACES_API_KEY
-    const prospects = hasGoogleKey
-      ? await searchGooglePlaces(industryKey, zipCodes)
-      : await scrapeCompanies(industryKey, zipCodes)
+    if (hasGoogleKey) {
+      prospects = await searchGooglePlaces(industryKey, zipCodes)
+      if (prospects.length > 0) {
+        provider = 'google-places'
+      }
+    }
+
+    // If Google Places failed or returned nothing, try scraper
+    if (prospects.length === 0) {
+      prospects = await scrapeCompanies(industryKey, zipCodes)
+      provider = prospects.length > 0 ? 'web-scraper' : provider || 'none'
+    }
 
     if (prospects.length === 0) {
       return NextResponse.json(
         {
-          error: `No companies found for ${industryKey} in ${zipCodes.join(', ')}`,
-          provider: hasGoogleKey ? 'google-places' : 'web-scraper',
+          error: `No companies found for ${industryKey} in ${zipCodes.join(', ')}. Attempted providers: ${hasGoogleKey ? 'google-places, web-scraper' : 'web-scraper'}`,
+          provider,
         },
         { status: 400 }
       )
@@ -60,7 +72,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       success: true,
       ...importResult,
-      provider: hasGoogleKey ? 'google-places' : 'web-scraper',
+      provider,
       source: zipCode ? 'manual-zip' : 'territory-engine',
       territoryKey: territoryKey || null,
       zipCodes,

@@ -15,6 +15,7 @@ interface SearchParams {
   industry?: string
   source?: string
   quickfilter?: string
+  sort?: string
 }
 
 export const metadata = {
@@ -143,17 +144,21 @@ export default async function PipelinePageAsync({
     },
   })
 
-  // Sort by priority
-  companies.sort((a, b) => {
-    const scoreA = getPriorityScore(a)
-    const scoreB = getPriorityScore(b)
-    if (scoreA !== scoreB) return scoreA - scoreB
-    // Secondary sort by nextActionDate
-    if (a.nextActionDate && b.nextActionDate) {
-      return a.nextActionDate.getTime() - b.nextActionDate.getTime()
-    }
-    return 0
-  })
+  // Sort by priority or alphabetically
+  if (searchParams.sort === 'name') {
+    companies.sort((a, b) => a.name.localeCompare(b.name))
+  } else {
+    companies.sort((a, b) => {
+      const scoreA = getPriorityScore(a)
+      const scoreB = getPriorityScore(b)
+      if (scoreA !== scoreB) return scoreA - scoreB
+      // Secondary sort by nextActionDate
+      if (a.nextActionDate && b.nextActionDate) {
+        return a.nextActionDate.getTime() - b.nextActionDate.getTime()
+      }
+      return 0
+    })
+  }
 
   // Get all-data for summary cards
   const now = new Date()
@@ -238,6 +243,32 @@ export default async function PipelinePageAsync({
                 Clear
               </Link>
             )}
+          </div>
+        </div>
+
+        <div className="mb-6 p-4 bg-gray-50 rounded-lg">
+          <h2 className="text-sm font-semibold mb-3">Sort Order</h2>
+          <div className="flex gap-2">
+            <Link
+              href="/pipeline"
+              className={`px-3 py-1 rounded text-sm font-medium transition ${
+                !searchParams.sort
+                  ? 'bg-blue-600 text-white'
+                  : 'bg-white border border-gray-300 text-gray-700 hover:bg-gray-50'
+              }`}
+            >
+              Priority
+            </Link>
+            <Link
+              href="/pipeline?sort=name"
+              className={`px-3 py-1 rounded text-sm font-medium transition ${
+                searchParams.sort === 'name'
+                  ? 'bg-blue-600 text-white'
+                  : 'bg-white border border-gray-300 text-gray-700 hover:bg-gray-50'
+              }`}
+            >
+              Alphabetical
+            </Link>
           </div>
         </div>
 

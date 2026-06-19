@@ -19,15 +19,15 @@ export async function POST(request: NextRequest) {
     let territoryKey: string | null = null
     let zipCodes: string[] = []
 
-    // Territory-based research (default)
+    // Territory-based research (default) - one zip code at a time
     if (!zipCode) {
       const nextTerritory = await getNextTerritory(industryKey)
       if (!nextTerritory) {
         return NextResponse.json({ error: 'No territories available for this industry' }, { status: 400 })
       }
       territoryKey = nextTerritory.territory
-      zipCodes = nextTerritory.zipCodes
-      console.log(`[Research] Territory: ${industryKey} in ${territoryKey} (${zipCodes.join(', ')})`)
+      zipCodes = [nextTerritory.zipCodes[0]]
+      console.log(`[Research] Territory: ${industryKey} in ${territoryKey} (${zipCodes[0]})`)
     } else {
       zipCodes = [zipCode]
       console.log(`[Research] Manual: ${industryKey} in ${zipCode}`)

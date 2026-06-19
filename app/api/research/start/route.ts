@@ -97,7 +97,14 @@ async function searchGooglePlaces(industryKey: string, zipCodes: string[]) {
         const response = await axios.post(
           'https://places.googleapis.com/v1/places:searchText',
           { textQuery: `${term} in ${zipCode} ${city} OK`, maxResultCount: 20 },
-          { headers: { 'X-Goog-Api-Key': apiKey, 'Content-Type': 'application/json' }, timeout: 10000 }
+          {
+            headers: {
+              'X-Goog-Api-Key': apiKey,
+              'X-Goog-FieldMask': 'places.displayName,places.id,places.formattedAddress,places.nationalPhoneNumber,places.websiteUri',
+              'Content-Type': 'application/json',
+            },
+            timeout: 10000,
+          }
         )
 
         console.log(`[GooglePlaces] Response for "${term}" in ${zipCode}:`, JSON.stringify(response.data, null, 2))

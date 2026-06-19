@@ -179,7 +179,7 @@ const SEARCH_TERMS: Record<string, string[]> = {
   law: ['attorney', 'law firm'],
   financial: ['financial advisor'],
   retreat: ['event venue', 'conference center'],
-  education: ['school', 'university'],
+  childcare: ['preschool', 'daycare', 'after school care', 'learning center', 'childcare facility', 'kids club'],
   general_business: [
     'insurance agency',
     'consulting firm',

@@ -5,7 +5,7 @@ export async function PATCH(
   request: NextRequest,
   { params }: { params: { id: string } }
 ) {
-  const { website, address, city, state, zip } = await request.json()
+  const { website, address, city, state, zip, nextActionDate } = await request.json()
 
   try {
     const updateData: any = {}
@@ -14,6 +14,7 @@ export async function PATCH(
     if (city !== undefined) updateData.city = city || null
     if (state !== undefined) updateData.state = state || null
     if (zip !== undefined) updateData.zip = zip || null
+    if (nextActionDate !== undefined) updateData.nextActionDate = nextActionDate ? new Date(nextActionDate) : null
 
     const company = await prisma.company.update({
       where: { id: params.id },

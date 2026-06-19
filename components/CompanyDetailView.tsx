@@ -14,6 +14,7 @@ interface Company {
   zip?: string | null
   industryIds?: string[]
   whyTheyFit?: string | null
+  nextActionDate?: Date | null
   createdAt: Date
   source: string
   contacts: any[]
@@ -39,6 +40,27 @@ export default function CompanyDetailView({ company }: { company: Company }) {
     contactType: 'GENERAL_OFFICE',
   })
   const [savingContact, setSavingContact] = useState(false)
+  const [nextActionDate, setNextActionDate] = useState(
+    company.nextActionDate ? new Date(company.nextActionDate).toISOString().split('T')[0] : ''
+  )
+  const [savingNextAction, setSavingNextAction] = useState(false)
+
+  const handleSaveNextActionDate = async () => {
+    setSavingNextAction(true)
+    try {
+      const res = await fetch(`/api/companies/${company.id}/details`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ nextActionDate: nextActionDate || null }),
+      })
+
+      if (!res.ok) throw new Error('Failed to update next action date')
+    } catch (err) {
+      alert('Error: ' + (err as Error).message)
+    } finally {
+      setSavingNextAction(false)
+    }
+  }
 
   const handleContactUpdate = async (contactId: string, data: any) => {
     try {
@@ -220,6 +242,36 @@ export default function CompanyDetailView({ company }: { company: Company }) {
           <p className="text-sm text-gray-700">{company.whyTheyFit}</p>
         </div>
       )}
+
+      <div className="mb-6 p-4 bg-gray-50 rounded border border-gray-200">
+        <h3 className="text-sm font-semibold text-gray-600 mb-3">Next Action Date</h3>
+        <div className="flex gap-2 items-end">
+          <div className="flex-1">
+            <label className="block text-xs font-medium text-gray-700 mb-1">Schedule outreach</label>
+            <input
+              type="date"
+              value={nextActionDate}
+              onChange={(e) => setNextActionDate(e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 rounded text-sm"
+            />
+          </div>
+          <button
+            onClick={handleSaveNextActionDate}
+            disabled={savingNextAction}
+            className="px-3 py-2 bg-green-600 text-white rounded text-sm hover:bg-green-700 disabled:opacity-50"
+          >
+            {savingNextAction ? 'Saving...' : 'Save'}
+          </button>
+          {nextActionDate && (
+            <button
+              onClick={() => setNextActionDate('')}
+              className="px-3 py-2 bg-gray-300 text-gray-800 rounded text-sm hover:bg-gray-400"
+            >
+              Clear
+            </button>
+          )}
+        </div>
+      </div>
 
       <div className="mb-6">
         <h2 className="text-lg font-bold mb-3">Contacts</h2>

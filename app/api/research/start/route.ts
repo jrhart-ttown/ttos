@@ -61,6 +61,12 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    // Cap at 15 companies per research call for manageability
+    const maxProspects = 15
+    if (prospects.length > maxProspects) {
+      prospects = prospects.slice(0, maxProspects)
+    }
+
     // Import through dedup logic
     const importResult = await importProspectsForIndustry(industryKey, prospects)
 

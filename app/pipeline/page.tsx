@@ -97,9 +97,8 @@ export default async function PipelinePageAsync({
   // Apply quick filters if set
   if (searchParams.quickfilter) {
     const now = new Date()
-    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate())
-    const tomorrow = new Date(today)
-    tomorrow.setDate(tomorrow.getDate() + 1)
+    const today = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()))
+    const tomorrow = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + 1))
 
     switch (searchParams.quickfilter) {
       case 'overdue':
@@ -163,11 +162,10 @@ export default async function PipelinePageAsync({
     })
   }
 
-  // Get all-data for summary cards
-  const now = new Date()
-  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate())
-  const tomorrow = new Date(today)
-  tomorrow.setDate(tomorrow.getDate() + 1)
+  // Get all-data for summary cards (reuse today/tomorrow from filters if available)
+  const nowForSummary = new Date()
+  const todayForSummary = new Date(Date.UTC(nowForSummary.getUTCFullYear(), nowForSummary.getUTCMonth(), nowForSummary.getUTCDate()))
+  const tomorrowForSummary = new Date(Date.UTC(nowForSummary.getUTCFullYear(), nowForSummary.getUTCMonth(), nowForSummary.getUTCDate() + 1))
 
   const allCompanies = await prisma.company.findMany({
     where: { doNotContact: false },

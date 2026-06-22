@@ -106,6 +106,7 @@ export default async function PipelinePageAsync({
         where.stage = { notIn: ['WON', 'LOST', 'NURTURE'] }
         break
       case 'today':
+        console.log('[Pipeline] Today filter:', { today, tomorrow, todayTime: today.getTime(), tomorrowTime: tomorrow.getTime() })
         where.nextActionDate = { gte: today, lt: tomorrow }
         break
       case 'no-next-action':
@@ -145,6 +146,10 @@ export default async function PipelinePageAsync({
       emailLogs: { take: 1, orderBy: { sentDate: 'desc' } },
     },
   })
+
+  if (searchParams.quickfilter === 'today') {
+    console.log('[Pipeline] Today filter results:', { count: companies.length, sampleDates: companies.slice(0, 3).map(c => ({ name: c.name, nextActionDate: c.nextActionDate })) })
+  }
 
   // Sort by priority or alphabetically
   if (searchParams.sort === 'name') {

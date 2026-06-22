@@ -10,8 +10,11 @@ export default function PipelineSummaryCards({
   activeFilter?: string
 }) {
   const now = new Date()
-  const today = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()))
-  const tomorrow = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + 1))
+  const todayStr = now.toISOString().split('T')[0]
+  const today = new Date(todayStr)
+  const tomorrowDate = new Date(now)
+  tomorrowDate.setDate(tomorrowDate.getDate() + 1)
+  const tomorrow = tomorrowDate
 
   // Calculate key metrics
   const overdue = allCompanies.filter(

@@ -10,7 +10,8 @@ export async function POST(
   try {
     const parseLocalDate = (dateStr: string) => {
       const [year, month, day] = dateStr.split('-').map(Number)
-      return new Date(year, month - 1, day)
+      // Create UTC date to avoid timezone offset issues
+      return new Date(Date.UTC(year, month - 1, day))
     }
 
     const interaction = await prisma.interaction.create({

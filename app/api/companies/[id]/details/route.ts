@@ -14,7 +14,14 @@ export async function PATCH(
     if (city !== undefined) updateData.city = city || null
     if (state !== undefined) updateData.state = state || null
     if (zip !== undefined) updateData.zip = zip || null
-    if (nextActionDate !== undefined) updateData.nextActionDate = nextActionDate ? new Date(nextActionDate) : null
+    if (nextActionDate !== undefined) {
+      if (nextActionDate) {
+        const [year, month, day] = nextActionDate.split('-').map(Number)
+        updateData.nextActionDate = new Date(Date.UTC(year, month - 1, day))
+      } else {
+        updateData.nextActionDate = null
+      }
+    }
 
     const company = await prisma.company.update({
       where: { id: params.id },

@@ -139,6 +139,31 @@ export async function upsertProspect(data: UpsertProspectInput) {
   }
 }
 
+export async function findPotentialDuplicates(companyId: string) {
+  const company = await prisma.company.findUnique({
+    where: { id: companyId },
+  })
+
+  if (!company) return []
+
+  const otherCompanies = await prisma.company.findMany({
+    where: {
+      id: { not: companyId },
+      city: company.city,
+    },
+  })
+
+  return otherCompanies
+    .map(c => ({
+      id: c.id,
+      name: c.name,
+      city: c.city,
+      similarity: calculateSimilarity(company.name, c.name),
+    }))
+    .filter(c => c.similarity > 0.75)
+    .sort((a, b) => b.similarity - a.similarity)
+}
+
 export async function logInteraction(
   companyId: string,
   contactId: string | undefined,

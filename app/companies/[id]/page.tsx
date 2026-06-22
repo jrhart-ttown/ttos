@@ -1,4 +1,5 @@
 import { prisma } from '@/lib/prisma'
+import { findPotentialDuplicates } from '@/lib/leads'
 import CompanyDetailView from '@/components/CompanyDetailView'
 import CompanyDetailHeader from '@/components/CompanyDetailHeader'
 import InteractionForm from '@/components/InteractionForm'
@@ -34,13 +35,15 @@ export default async function CompanyDetailPage({
     notFound()
   }
 
+  const potentialDuplicates = await findPotentialDuplicates(company.id)
+
   return (
     <div className="container">
       <CompanyDetailHeader companyId={company.id} />
 
       <div className="grid grid-cols-3 gap-8">
         <div className="col-span-2">
-          <CompanyDetailView company={company} />
+          <CompanyDetailView company={company} potentialDuplicates={potentialDuplicates} />
 
           <IndustriesSection companyId={company.id} initialIndustryIds={company.industryIds} />
 

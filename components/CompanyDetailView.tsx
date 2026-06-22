@@ -22,7 +22,20 @@ interface Company {
   whaleMilestones: any[]
 }
 
-export default function CompanyDetailView({ company }: { company: Company }) {
+interface PotentialDuplicate {
+  id: string
+  name: string
+  city?: string | null
+  similarity: number
+}
+
+export default function CompanyDetailView({
+  company,
+  potentialDuplicates = []
+}: {
+  company: Company
+  potentialDuplicates?: PotentialDuplicate[]
+}) {
   const [companyName, setCompanyName] = useState(company.name)
   const [contacts, setContacts] = useState(company.contacts)
   const [website, setWebsite] = useState(company.website || '')
@@ -133,6 +146,27 @@ export default function CompanyDetailView({ company }: { company: Company }) {
 
   return (
     <div className="bg-white border border-gray-200 rounded-lg p-6">
+      {potentialDuplicates.length > 0 && (
+        <div className="mb-6 p-3 bg-yellow-50 border border-yellow-200 rounded">
+          <p className="text-sm font-semibold text-yellow-900 mb-2">⚠️ Potential Duplicate</p>
+          <div className="space-y-2">
+            {potentialDuplicates.map((dup) => (
+              <div key={dup.id} className="flex items-center justify-between">
+                <div>
+                  <a href={`/companies/${dup.id}`} className="text-blue-600 hover:underline text-sm font-medium">
+                    {dup.name}
+                  </a>
+                  <p className="text-xs text-gray-600">{dup.city}</p>
+                </div>
+                <span className="text-xs font-semibold px-2 py-1 bg-yellow-100 text-yellow-800 rounded">
+                  {(dup.similarity * 100).toFixed(0)}% match
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       <EditableCompanyName companyId={company.id} initialName={company.name} onUpdate={setCompanyName} />
 
       {editingDetails ? (

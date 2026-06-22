@@ -80,6 +80,9 @@ export default async function PipelinePageAsync({
 }) {
   const where: any = {}
 
+  // Always exclude do-not-contact companies
+  where.doNotContact = false
+
   if (searchParams.stage) where.stage = searchParams.stage
   if (searchParams.tier) where.tier = searchParams.tier
   if (searchParams.territory) where.territory = searchParams.territory
@@ -167,6 +170,7 @@ export default async function PipelinePageAsync({
   tomorrow.setDate(tomorrow.getDate() + 1)
 
   const allCompanies = await prisma.company.findMany({
+    where: { doNotContact: false },
     include: {
       contacts: { take: 1 },
       interactions: { take: 1, orderBy: { date: 'desc' } },
@@ -175,6 +179,7 @@ export default async function PipelinePageAsync({
 
   const stageCounts = await prisma.company.groupBy({
     by: ['stage'],
+    where: { doNotContact: false },
     _count: true,
   })
 

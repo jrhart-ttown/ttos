@@ -97,17 +97,18 @@ export default async function PipelinePageAsync({
   // Apply quick filters if set
   if (searchParams.quickfilter) {
     const now = new Date()
-    const today = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()))
-    const tomorrow = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + 1))
+    const todayStr = now.toISOString().split('T')[0]
+    const tomorrowDate = new Date(now)
+    tomorrowDate.setDate(tomorrowDate.getDate() + 1)
+    const tomorrowStr = tomorrowDate.toISOString().split('T')[0]
 
     switch (searchParams.quickfilter) {
       case 'overdue':
-        where.nextActionDate = { lt: today }
+        where.nextActionDate = { lt: new Date(todayStr) }
         where.stage = { notIn: ['WON', 'LOST', 'NURTURE'] }
         break
       case 'today':
-        console.log('[Pipeline] Today filter:', { today, tomorrow, todayTime: today.getTime(), tomorrowTime: tomorrow.getTime() })
-        where.nextActionDate = { gte: today, lt: tomorrow }
+        where.nextActionDate = { gte: new Date(todayStr), lte: new Date(tomorrowStr) }
         break
       case 'no-next-action':
         where.nextActionDate = null
